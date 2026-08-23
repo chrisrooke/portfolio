@@ -330,6 +330,18 @@ export async function getWriting() {
 Drafts stay visible in `dev` and vanish in `build`, which is what you want while writing.
 Because this is the only place the filter exists, it cannot be forgotten on a new page.
 
+`isPublished` and `byNewest` are generic over `baseFields`, so Projects, Notes, and Stash
+reuse them unchanged — there is one draft rule and one sort rule for the whole site.
+
+> **Caveat: build-time assertions only run if a page calls them.** `assertRenderable()` fires
+> from inside `getWriting()`, so it catches nothing on a build where no page happens to call
+> `getWriting()`. From Phase 4 onward the homepage and `/writing` both call it on every build,
+> so it's always live — but it is not a linter, and it can't be relied on before then.
+
+> **Dev server caches the content store.** A dev server started *before* `content.config.ts`
+> existed will serve zero entries and give no hint why. After changing collection config,
+> restart it (`astro dev stop && astro dev --background`). Costly minutes if you don't know.
+
 ### 4.2 The combined Notes + Stash feed
 
 This is where "collections are storage, feeds are views" pays off. Normalise both into a
@@ -451,7 +463,7 @@ Small and independently verifiable, so each one can be understood before the nex
 |---|---|---|
 | **0** | ✅ `.gitignore`; `astro add mdx`; directory skeleton; `Base.astro`; empty `global.css` | Done — `astro build` passes, homepage renders |
 | **1** | ✅ `tags.json`; `fields.ts`; `content.config.ts`; `writing` + 3 sample posts | Done — entries load, refs resolve, both failure modes verified |
-| **2** | View layer: `getWriting()`, draft filter, sort, body/URL assertion | Temp debug page lists posts in the right order |
+| **2** | ✅ `src/lib/content.ts` — `getWriting()`, draft filter, sort, renderable assertion | Done — dev 4 / prod 3, order correct, assertion fires |
 | **3** | `/writing/[...id]` route + `Post.astro`; external posts correctly excluded | Internal posts render; external ones 404 by design |
 | **4** | `WritingPreview.astro`; wire into `/writing` index and homepage | Both post kinds preview identically, link differently |
 | **5** | Tag filter UI on `/writing` | Filtering works; options derive from tags in use |
