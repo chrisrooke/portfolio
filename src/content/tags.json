@@ -1,0 +1,18 @@
+{
+  "astro": {
+    "name": "Astro",
+    "description": "Building with the Astro framework."
+  },
+  "accessibility": {
+    "name": "Accessibility",
+    "description": "Inclusive design and development practice."
+  },
+  "design-systems": {
+    "name": "Design Systems",
+    "description": "Componentry, tokens, and shared language."
+  },
+  "process": {
+    "name": "Process",
+    "description": "How the work actually gets made."
+  }
+}

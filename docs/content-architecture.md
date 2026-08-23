@@ -1,7 +1,12 @@
 # Content Architecture
 
 Plan for the content model of the portfolio site. Written against **Astro 7.2.4**, which
-uses the Content Layer API with **Zod 4.4.3** (exported as `z` from `astro:content`).
+uses the Content Layer API with **Zod 4.4.3**.
+
+> **Import `z` from `astro/zod`, not `astro:content`.** Astro 7 deprecates
+> `import { z } from 'astro:content'` — it still works but is slated for removal. Most
+> tutorials online still show the old form. `reference`, `defineCollection`, `getCollection`,
+> `getEntries`, and `render` all still come from `astro:content`; only `z` moved.
 
 Status: **plan, not yet implemented.** Phases at the bottom.
 
@@ -49,6 +54,36 @@ Brief, since these terms recur throughout.
 The build-time validation is the reason to invest in schemas at all: a broken tag reference
 or a missing date becomes a failed build with a filename, not a blank space on a live page.
 
+### Two kinds of validation failure, verified in Phase 1
+
+They behave differently, and the difference matters when debugging:
+
+**Schema failures** (wrong type, missing field, failed `.refine()`) are clean, fatal, and
+name the file and the custom message:
+
+```
+[InvalidContentEntryDataError] writing → notes-on-content-modelling
+data does not match collection schema.
+  coverAlt: coverAlt is required when cover is set. Use an empty string for
+            purely decorative images.
+```
+
+**Reference failures** are messier. A bad `reference('tags')` logs a clear error at sync:
+
+```
+[ERROR] [content] Invalid content reference: entry "starting-again" in collection
+"writing" (field: tags[0]) references "astroo" in collection "tags", but that
+entry does not exist.
+```
+
+…but **sync does not halt there.** The build continues, and `getEntries()` then returns
+`undefined` for the missing entry, so the *fatal* error is a downstream
+`TypeError: Cannot read properties of undefined (reading 'data')` pointing at a bundled chunk.
+
+The build does fail — nothing broken ships — but the error you see last is not the error that
+matters. **When a build dies on an undefined `.data`, scroll up to the first `[content]`
+ERROR line.** That's the real one, and it names the file and field.
+
 ---
 
 ## 3. The collections
@@ -93,7 +128,8 @@ field groups** spread into each collection. Zod v4 spreads cleanly as plain obje
 
 ```ts
 // src/content/fields.ts
-import { z, reference } from 'astro:content';
+import { z } from 'astro/zod';
+import { reference } from 'astro:content';
 import type { ImageFunction } from 'astro:content';
 
 /** On every collection. */
@@ -414,7 +450,7 @@ Small and independently verifiable, so each one can be understood before the nex
 | Phase | Scope | Done when |
 |---|---|---|
 | **0** | ✅ `.gitignore`; `astro add mdx`; directory skeleton; `Base.astro`; empty `global.css` | Done — `astro build` passes, homepage renders |
-| **1** | `tags.json`; `fields.ts`; `writing` collection; 3 sample posts (2 internal, 1 external) | `astro check` passes; a bad tag ref fails the build |
+| **1** | ✅ `tags.json`; `fields.ts`; `content.config.ts`; `writing` + 3 sample posts | Done — entries load, refs resolve, both failure modes verified |
 | **2** | View layer: `getWriting()`, draft filter, sort, body/URL assertion | Temp debug page lists posts in the right order |
 | **3** | `/writing/[...id]` route + `Post.astro`; external posts correctly excluded | Internal posts render; external ones 404 by design |
 | **4** | `WritingPreview.astro`; wire into `/writing` index and homepage | Both post kinds preview identically, link differently |

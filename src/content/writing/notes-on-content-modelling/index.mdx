@@ -1,0 +1,34 @@
+---
+title: Notes on content modelling
+intro: >-
+  Why the shape of your data should follow the shape of the thing, not the shape
+  of the page you happen to be building this week.
+publishDate: 2026-08-20
+cover: ./cover.svg
+coverAlt: An abstract diagram of linked content nodes.
+tags:
+  - design-systems
+  - process
+---
+
+The temptation, every time, is to let a layout decide a schema. You need two
+things side by side on a page, so you put them in one bucket. Six months later
+the bucket has nine optional fields and every consumer starts with a `switch`.
+
+## Storage is not display
+
+A collection should be shaped like the thing it stores. If two collections need
+to appear together, that is a *view* concern, and views are cheap to build:
+
+- Normalise the two shapes into a common item type
+- Sort the combined list
+- Switch on a discriminant when rendering
+
+What you get back for the small amount of glue is two honest schemas instead of
+one dishonest one.
+
+## Validation earns its keep quietly
+
+The value of a build-time schema isn't the types. It's that a typo in a tag
+becomes a failed build naming the file, rather than a blank space that nobody
+notices for a month.
