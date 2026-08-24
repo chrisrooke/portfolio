@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" role="img" aria-label="Abstract book jacket">
+  <rect width="400" height="600" fill="#f3ece2"/>
+  <circle cx="140" cy="220" r="86" fill="none" stroke="#22333b" stroke-width="3"/>
+  <circle cx="262" cy="372" r="54" fill="none" stroke="#c8553d" stroke-width="3"/>
+  <path d="M140 306v66h122" fill="none" stroke="#22333b" stroke-width="3"/>
+  <rect x="48" y="486" width="304" height="2" fill="#22333b"/>
+  <rect x="48" y="500" width="180" height="2" fill="#c8553d"/>
+</svg>

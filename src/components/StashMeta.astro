@@ -1,0 +1,98 @@
+---
+import { creatorSlug, type StashEntry } from '../lib/content';
+
+type Medium = StashEntry['data']['medium'];
+
+interface Props {
+  medium: Medium;
+  creator: string[];
+  year?: number;
+  rating?: number;
+  recommended: boolean;
+}
+
+const { medium, creator, year, rating, recommended } = Astro.props;
+
+const MEDIUM_LABEL: Record<Medium, string> = {
+  book: 'Book',
+  film: 'Film',
+  tv: 'TV',
+  album: 'Album',
+  game: 'Game',
+  podcast: 'Podcast',
+  article: 'Article',
+};
+
+/*
+ * The reason `creator` is one field rather than author/director/artist: the
+ * label is presentational, so it derives from the medium at render time
+ * instead of being three optional fields of which exactly one is ever set.
+ */
+const CREATOR_PREPOSITION: Record<Medium, string> = {
+  book: 'by',
+  film: 'dir.',
+  tv: 'dir.',
+  album: 'by',
+  game: 'by',
+  podcast: 'by',
+  article: 'by',
+};
+---
+
+{
+  creator.length > 0 && (
+    <p>
+      {CREATOR_PREPOSITION[medium]}{' '}
+      {creator.map((name, i) => (
+        <>
+          {i > 0 && ', '}
+          {/*
+            A filter entry point, not the filter mechanism — see §4.5. The href
+            is real, so this degrades to a plain page load without JS; with JS
+            the script intercepts and filters in place.
+          */}
+          <a
+            href={`/stash?creator=${creatorSlug(name)}`}
+            data-facet="creator"
+            data-value={creatorSlug(name)}
+            data-facet-label={name}
+          >
+            {name}
+          </a>
+        </>
+      ))}
+    </p>
+  )
+}
+
+<dl>
+  <dt>Medium</dt>
+  <dd>{MEDIUM_LABEL[medium]}</dd>
+
+  {
+    year !== undefined && (
+      <>
+        <dt>Year</dt>
+        <dd>{year}</dd>
+      </>
+    )
+  }
+
+  {
+    rating !== undefined && (
+      <>
+        <dt>Rating</dt>
+        <dd>
+          {/*
+            Stars are decoration; the number is the content. Screen readers get
+            the sentence rather than five identical glyph names.
+          */}
+          <span aria-hidden="true">{'★'.repeat(rating)}{'☆'.repeat(5 - rating)}</span>
+          <span class="visually-hidden">{rating} out of 5</span>
+        </dd>
+      </>
+    )
+  }
+</dl>
+
+{recommended && <p><strong>Recommended</strong></p>}

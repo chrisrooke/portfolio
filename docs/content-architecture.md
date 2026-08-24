@@ -8,7 +8,7 @@ uses the Content Layer API with **Zod 4.4.3**.
 > tutorials online still show the old form. `reference`, `defineCollection`, `getCollection`,
 > `getEntries`, and `render` all still come from `astro:content`; only `z` moved.
 
-Status: **Phases 0–7 implemented.** Phases at the bottom.
+Status: **Phases 0–8 implemented.** Phases at the bottom.
 
 ---
 
@@ -389,15 +389,33 @@ behave identically when interleaved in a shared feed.
 `creator` are `one-of`, `rating` is `at-least`, `recommended` is a `flag`, and they combine
 with AND.
 
-> **⚠️ Guard to write with the collection: near-duplicate creator slugs.** `creator` is
-> free text, so unlike `tags` there is no `reference()` validating it. "Bong Joon-ho" in one
-> entry and "Bong Joon Ho" in another silently become two facet values that each match one
-> item, and nothing errors — the filter just quietly under-reports. `getStash()` should
-> compare creator slugs normalised past case, punctuation and whitespace, and throw naming
-> both spellings and the entries they came from. This is the same class of check as
-> `assertRenderable()` and `assertNotesHaveBody()`: the thing the schema structurally cannot
-> see. It lands with Phase 8 rather than Phase 7's extraction, because there is no collection
-> to check until then.
+**The creator-spelling guard.** `creator` is free text, so unlike `tags` there is no
+`reference()` validating it, and two spellings of one person become two facet values that
+each match one item. Nothing errors; the filter just quietly under-reports.
+`assertConsistentCreators()` groups every creator string by an aggressive key — case folded,
+diacritics stripped, all non-alphanumerics removed — and throws if one key has more than one
+spelling, naming each spelling and the entries it appears in:
+
+```
+Stash creators spelled inconsistently:
+  - "Ursula K. Le Guin" in the-dispossessed
+  - "Ursula K Le Guin" in tmp-dup
+
+  - "Ken Burns" in the-vietnam-war
+  - "KenBurns" in tmp-dup
+These filter as separate people. Pick one spelling and use it everywhere.
+```
+
+It catches both failure shapes: spellings that produce the *same* slug (so the facet works
+but the displayed name is inconsistent between entries), and spellings that produce
+*different* slugs (so the facet genuinely splits one person in two). Same class of check as
+`assertRenderable()` and `assertNotesHaveBody()` — the thing the schema structurally cannot
+see.
+
+What it deliberately does not catch is a genuinely different name for the same person —
+"Ursula K. Le Guin" vs "Ursula Le Guin" are different names, not variant spellings, and no
+normalisation can tell that from two real people. That would need an alias map, which is a
+controlled vocabulary by another name and was rejected for the same reasons.
 
 ---
 
@@ -453,7 +471,22 @@ A discriminated union, so a `<FeedItem>` component switches on `kind` and TypeSc
 compile error if you reference `medium` in the note branch. The two collections keep their
 own honest schemas; only the *view* is unified.
 
-**As built in Phase 7**, with one arm and no `getStream()` yet:
+**As built.** The union gained its stash arm in Phase 8; `getStream()` is now a concatenate
+and re-sort, and `FeedItem.astro` branches on `kind`:
+
+- **The branch is smaller than expected**, because `render()`, `resolveTags()`, the
+  `<article>` chrome, the date and the tag list are all shared. Only the head differs —
+  cover art, a linked title and `StashMeta` for stash, a plain optional heading for a note —
+  plus a note's link-out line. The stash metadata went into its own component, matching
+  `ProjectMeta`, rather than swelling the branch.
+- **The body is shared but optional for only one kind.** A note must have a body; a stash
+  entry logged with a rating and no review is legitimate, so `FeedItem` gates on
+  `entry.body?.trim()` rather than assuming.
+- **`url` means different things per kind, so it renders differently.** A stash entry's url
+  *is* the work, so the title becomes the anchor. A note's url is a link *out* from the note
+  and keeps its own line below the prose.
+
+**As originally built in Phase 7**, with one arm and no `getStream()`:
 
 - Each collection owns its own `get…Feed()` that normalises its entries. `getStream()` is
   then concatenate-and-sort and nothing else, which is the point of normalising.
@@ -667,6 +700,7 @@ src/
     ProjectMeta.astro
     SeriesList.astro
     FeedItem.astro
+    StashMeta.astro
     FacetFilter.astro
   layouts/
     Base.astro
@@ -730,7 +764,17 @@ Applies to every `<Image>` added from here on, not just `Post.astro`. `ProjectPr
 now carries a second set of guesses (`[400, 800, 1200]`, `(min-width: 60rem) 30rem, 100vw`)
 against a card grid that does not exist yet — and since Projects lead the homepage, those
 covers are the heaviest assets on the site, so that pair matters more than `Post.astro`'s.
-**Two placeholders to revisit now, not one.**
+`FeedItem.astro` adds a third (`[240, 480, 720]`, `(min-width: 60rem) 16rem, 40vw`),
+deliberately narrower because stash art is portrait — jackets and posters are tall, so the
+same displayed height needs far fewer pixels of width than a landscape cover.
+
+**Three placeholders to revisit now.** They should be settled together once the layout
+exists, since they are three answers to one question.
+
+> **HTML comments in `.astro` templates ship to the browser.** `<!-- … -->` is real markup;
+> only `{/* … */}` is compiled away. Harmless in a layout, wasteful in anything repeated —
+> the note in `FeedItem` was being emitted once per feed entry. Converted there and in
+> `WritingPreview`; worth remembering for any comment inside a `.map()`.
 
 ### ✅ Resolved: the tag filter script is no longer trapped in one page
 
@@ -760,7 +804,7 @@ Small and independently verifiable, so each one can be understood before the nex
 | **6** | ✅ `projects` collection, `[...id]` route, `ProjectPreview`, `SeriesList`, derived reverse lookup, homepage Projects section | Done — series renders in array order, posts show "Part n of m", both guards fire |
 | **7** | ✅ `notes` collection, `/notes` feed, `FeedItem`, `getNoteFeed()` normalisation | Done — dev 6 / prod 5, both guards fire, long note renders unclipped |
 | **7.5** | ✅ `facet-filter.ts` + `FacetFilter.astro` + `lib/facets.ts`; `/writing` migrated, `/notes` filtered | Done — three modes, AND across / OR within, availability counts, link-driven facet, empty state |
-| **8** | `stash` collection + `/stash`; `getStream()` combined feed; creator-slug guard | Notes and Stash interleave correctly by date; five facets combine |
+| **8** | ✅ `stash` collection, `/stash`, `StashMeta`, `getStream()`, creator-spelling guard, `FeedItem` union widened | Done — stream interleaves strictly by date, five facets combine, guard names both spellings |
 | **9** | Homepage assembled: projects, writing, stream slice | All three sections live in order |
 | **10** | `/about`, `/colophon`, `/404`; RSS, sitemap, OG images | — |
 
@@ -803,3 +847,6 @@ are already reflected in the sections above.
 | Unavailable option markup | **`aria-disabled`, not `disabled`.** Keeps the option focusable and discoverable; the click handler declines. Never active-and-disabled at once. |
 | Filter control type | **Checkboxes and radios in a native `popover`**, not toggle buttons — the controls are genuinely a multi-select and a one-from-many. The script binds to any element with `data-facet`/`data-value`, so this is swappable without touching the logic. |
 | Creator links vs the menu | **Both, independently.** The menu narrows a list; a name in an entry answers "more by this person". Neither is the mechanism — the URL is. |
+| Stash body | **Optional**, unlike a note's. A rating with no review is a legitimate entry, and there is no permalink for it to look empty on. |
+| Creator alias map | **No.** It would catch "Ursula K. Le Guin" vs "Ursula Le Guin", but it is a controlled vocabulary by another name. The guard catches variant *spellings*; different names are out of scope. |
+| Stash facet options | **Derived from the entries**, never the full `medium` enum — a medium nothing is logged in is not offered, matching `getTagsInUse()`. |

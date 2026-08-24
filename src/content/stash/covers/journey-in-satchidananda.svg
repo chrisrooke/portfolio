@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" role="img" aria-label="Abstract album sleeve">
+  <rect width="400" height="600" fill="#2b1a3d"/>
+  <g fill="none" stroke="#f0b429" stroke-width="1.6" opacity="0.85">
+    <path d="M60 420c40-70 80-110 140-110s100 40 140 110"/>
+    <path d="M60 450c40-70 80-110 140-110s100 40 140 110" opacity="0.7"/>
+    <path d="M60 480c40-70 80-110 140-110s100 40 140 110" opacity="0.5"/>
+    <path d="M60 510c40-70 80-110 140-110s100 40 140 110" opacity="0.3"/>
+  </g>
+  <circle cx="200" cy="190" r="58" fill="#f0b429" opacity="0.9"/>
+  <circle cx="200" cy="190" r="58" fill="none" stroke="#ffe9a8" stroke-width="2"/>
+</svg>

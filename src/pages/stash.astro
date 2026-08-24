@@ -1,0 +1,110 @@
+---
+import Base from '../layouts/Base.astro';
+import FeedItem from '../components/FeedItem.astro';
+import FacetFilter from '../components/FacetFilter.astro';
+import { getStashFeed, getTagsInUse, creatorSlug, type StashEntry } from '../lib/content';
+import { tagFacet, facetValues, type FacetGroup } from '../lib/facets';
+
+/* Stream-only, matching Notes — no /stash/[id], so a single page. */
+const items = await getStashFeed();
+const entries = items.map((item) => item.entry as StashEntry);
+
+const MEDIUM_LABEL: Record<StashEntry['data']['medium'], string> = {
+  book: 'Book',
+  film: 'Film',
+  tv: 'TV',
+  album: 'Album',
+  game: 'Game',
+  podcast: 'Podcast',
+  article: 'Article',
+};
+
+/*
+ * Every facet's options are derived from the entries, never from the full
+ * vocabulary or the full enum — the same rule as getTagsInUse(). A medium
+ * nothing has been logged in is not offered, and a rating threshold is only
+ * offered if something is rated at all.
+ */
+const media = [...new Set(entries.map((entry) => entry.data.medium))].sort();
+const rated = entries.some((entry) => entry.data.rating !== undefined);
+const anyRecommended = entries.some((entry) => entry.data.recommended);
+
+const tags = await getTagsInUse(entries);
+
+const groups: FacetGroup[] = [
+  {
+    name: 'medium',
+    label: 'Medium',
+    options: media.map((medium) => ({ value: medium, label: MEDIUM_LABEL[medium] })),
+  },
+  tagFacet(tags, 'Genre'),
+  ...(rated
+    ? [
+        {
+          name: 'rating',
+          label: 'Rating',
+          mode: 'at-least' as const,
+          options: [
+            { value: '5', label: '5' },
+            { value: '4', label: '4+' },
+            { value: '3', label: '3+' },
+          ],
+        },
+      ]
+    : []),
+  ...(anyRecommended
+    ? [
+        {
+          name: 'recommended',
+          label: 'Recommended',
+          mode: 'flag' as const,
+          options: [{ value: 'true', label: 'Recommended only' }],
+        },
+      ]
+    : []),
+];
+---
+
+<Base title="Stash" description="Books, films, records and games worth remembering.">
+  <h1>Stash</h1>
+
+  <FacetFilter groups={groups} />
+
+  <p data-filter-status role="status" aria-live="polite" hidden></p>
+
+  {
+    items.length > 0 ? (
+      <>
+        <ul
+          role="list"
+          data-filterable-list
+          data-filter-noun="entry"
+          data-filter-noun-plural="entries"
+        >
+          {items.map((item) => {
+            const entry = item.entry as StashEntry;
+            return (
+              <li
+                data-facet-tag={facetValues(item.tags)}
+                data-facet-medium={entry.data.medium}
+                data-facet-rating={entry.data.rating}
+                data-facet-recommended={String(entry.data.recommended)}
+                data-facet-creator={facetValues(entry.data.creator.map(creatorSlug))}
+              >
+                <FeedItem item={item} headingLevel={2} />
+              </li>
+            );
+          })}
+        </ul>
+
+        <p data-filter-empty hidden>Nothing matches those filters.</p>
+      </>
+    ) : (
+      <p>Nothing logged yet.</p>
+    )
+  }
+</Base>
+
+<script>
+  import '../scripts/facet-filter';
+</script>

@@ -109,4 +109,40 @@ const notes = defineCollection({
     }),
 });
 
-export const collections = { tags, writing, projects, notes };
+/**
+ * Things consumed and worth remembering. Genuinely different metadata from a
+ * note, hence its own collection rather than a `kind` field — see
+ * docs/content-architecture.md §3.6.
+ *
+ * Unlike notes, the body is optional: logging a book with a rating and no
+ * review is a legitimate entry, and there is no page for it to look empty on.
+ */
+const stash = defineCollection({
+  loader: glob({ base: './src/content/stash', pattern: '**/*.md' }),
+  schema: ({ image }) =>
+    z
+      .object({
+        ...baseFields,
+        /** Title of the work, not of the entry. Always present. */
+        title: z.string(),
+        medium: z.enum(['book', 'film', 'tv', 'album', 'game', 'podcast', 'article']),
+        /**
+         * Author, director, artist, studio. One field rather than three
+         * optionals of which exactly one is ever set — the label is
+         * presentational and derives from `medium`.
+         *
+         * Free text, so unlike `tags` there is no reference() validating it.
+         * getStash() guards against near-duplicate spellings instead.
+         */
+        creator: z.array(z.string()).default([]),
+        /** Year of the work, not of logging. `publishDate` is when it was logged. */
+        year: z.number().int().optional(),
+        url: z.url().optional(),
+        rating: z.number().min(1).max(5).optional(),
+        recommended: z.boolean().default(false),
+        ...coverFields(image),
+      })
+      .refine(hasAltWithCover, altRequiredError),
+});
+
+export const collections = { tags, writing, projects, notes, stash };

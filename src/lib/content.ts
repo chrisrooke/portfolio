@@ -176,21 +176,85 @@ export async function getNotes(): Promise<NoteEntry[]> {
   return entries.sort(byNewest);
 }
 
+export type StashEntry = CollectionEntry<'stash'>;
+
+/**
+ * URL- and attribute-safe form of a creator's name. "Denis Villeneuve" →
+ * "denis-villeneuve". Diacritics are folded so "Björk" and "Bjork" are one
+ * person rather than two facet values.
+ */
+export const creatorSlug = (name: string): string =>
+  name
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+
+/** Aggressive form used only to spot spellings that ought to be the same name. */
+const creatorKey = (name: string) => creatorSlug(name).replace(/-/g, '');
+
+/**
+ * The invariant `reference()` would have given us for free, if creators were a
+ * controlled vocabulary — and they can't be, since every new director would
+ * need an entry in tags.json.
+ *
+ * "Bong Joon-ho" in one entry and "Bong Joonho" in another silently become two
+ * facet values that each match one item. Nothing errors; the filter just
+ * quietly under-reports, which is exactly the sort of thing found years later.
+ * Same class of check as assertRenderable() and assertNotesHaveBody().
+ */
+function assertConsistentCreators(entries: StashEntry[]): void {
+  const spellings = new Map<string, Map<string, string[]>>();
+
+  for (const entry of entries) {
+    for (const name of entry.data.creator) {
+      const key = creatorKey(name);
+      if (!key) continue;
+      const variants = spellings.get(key) ?? new Map<string, string[]>();
+      variants.set(name, [...(variants.get(name) ?? []), entry.id]);
+      spellings.set(key, variants);
+    }
+  }
+
+  const conflicts = [...spellings.values()].filter((variants) => variants.size > 1);
+
+  if (conflicts.length > 0) {
+    const detail = conflicts
+      .map((variants) =>
+        [...variants.entries()]
+          .map(([name, ids]) => `  - "${name}" in ${ids.join(', ')}`)
+          .join('\n'),
+      )
+      .join('\n\n');
+
+    throw new Error(
+      `Stash creators spelled inconsistently:\n${detail}\n` +
+        'These filter as separate people. Pick one spelling and use it everywhere.',
+    );
+  }
+}
+
+/** All stash entries, newest logged first. Drafts excluded in production builds. */
+export async function getStash(): Promise<StashEntry[]> {
+  const entries = (await getCollection('stash')).filter(isPublished);
+  assertConsistentCreators(entries);
+  return entries.sort(byNewest);
+}
+
 /**
  * The normalised shape the Notes/Stash stream sorts and lays out with — see
  * docs/content-architecture.md §4.2. The whole `entry` is kept alongside the
  * flat fields, so the component still renders the real thing; only ordering
  * uses the normalised copy.
  *
- * One arm today. Phase 8 adds `| { kind: 'stash'; … }` and the discriminant is
- * already here, so nothing about this shape has to change to admit it.
+ * A discriminated union, so FeedItem.astro switches on `kind` and TypeScript
+ * narrows `entry` to the right type — autocomplete on `medium` inside the
+ * stash branch, and a compile error for it in the note branch.
  */
-export type FeedItem = {
-  kind: 'note';
-  date: Date;
-  tags: string[];
-  entry: NoteEntry;
-};
+export type FeedItem =
+  | { kind: 'note'; date: Date; tags: string[]; entry: NoteEntry }
+  | { kind: 'stash'; date: Date; tags: string[]; entry: StashEntry };
 
 /** Newest first over the normalised shape, where the date is flat. */
 export const byNewestItem = <T extends { date: Date }>(a: T, b: T): number =>
@@ -208,6 +272,25 @@ export async function getNoteFeed(): Promise<FeedItem[]> {
     tags: entry.data.tags.map((tag) => tag.id),
     entry,
   }));
+}
+
+export async function getStashFeed(): Promise<FeedItem[]> {
+  return (await getStash()).map((entry) => ({
+    kind: 'stash' as const,
+    date: entry.data.publishDate,
+    tags: entry.data.tags.map((tag) => tag.id),
+    entry,
+  }));
+}
+
+/**
+ * Notes and Stash interleaved by date — the payoff of normalising. Two
+ * collections with honestly different schemas merge on one axis, and neither
+ * had to compromise its own shape to do it.
+ */
+export async function getStream(): Promise<FeedItem[]> {
+  const [notes, stash] = await Promise.all([getNoteFeed(), getStashFeed()]);
+  return [...notes, ...stash].sort(byNewestItem);
 }
 
 export type TagEntry = CollectionEntry<'tags'>;

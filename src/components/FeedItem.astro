@@ -1,7 +1,10 @@
 ---
 import { render } from 'astro:content';
+import { Image } from 'astro:assets';
+import StashMeta from './StashMeta.astro';
 import { resolveTags, type FeedItem } from '../lib/content';
 import { formatDate, machineDate, hostname } from '../lib/format';
+import { coverImageProps } from '../lib/images';
 
 interface Props {
   item: FeedItem;
@@ -15,43 +18,95 @@ const Heading = `h${headingLevel}` as 'h2' | 'h3' | 'h4';
 
 /*
  * Unlike the preview components, a feed item renders the actual body. Notes
- * have no permalink — the feed *is* the note — so there is nowhere else for the
- * content to live and nothing to link the title to.
+ * and stash entries have no permalink — the feed *is* the item — so there is
+ * nowhere else for the content to live.
  *
- * Phase 8 adds the stash arm. Until there is a second kind, a switch on
- * item.kind would be one branch and a comment pretending to be a seam; the
- * union carries the discriminant so adding that branch is additive.
+ * Shared by both kinds, but optional for only one: a note is required to have
+ * a body, while logging a book with a rating and no review is legitimate.
  */
 const { Content } = await render(item.entry);
 const tags = await resolveTags(item.entry);
+const hasBody = Boolean(item.entry.body?.trim());
 
-const { title, url, urlLabel } = item.entry.data;
+const { title } = item.entry.data;
 
 /*
  * Most notes are untitled, so most have no heading to name the article. That
  * leaves the date as the only identifying content, which makes for a useless
  * entry in a screen reader's list of articles — hence the fallback label. A
- * titled note needs no label, since the heading already provides one.
+ * titled item needs no label, since the heading already provides one.
  */
 const label = title ? undefined : `Note — ${formatDate(item.date)}`;
+
+// ⚠️ Placeholder, like Post.astro and ProjectPreview.astro — see §5. Stash art
+// is portrait (jackets, posters), so these are narrower than the others.
+const COVER_WIDTHS = [240, 480, 720];
+const COVER_SIZES = '(min-width: 60rem) 16rem, 40vw';
 ---
 
 <article aria-label={label}>
-  {title && <Heading>{title}</Heading>}
+  {
+    item.kind === 'stash' ? (
+      <>
+        {item.entry.data.cover && (
+          <Image
+            src={item.entry.data.cover}
+            alt={item.entry.data.coverAlt ?? ''}
+            {...coverImageProps(item.entry.data.cover, COVER_WIDTHS, COVER_SIZES)}
+          />
+        )}
 
-  <!--
+        <Heading>
+          {/*
+            For a stash entry the url is the work itself, so the title is the
+            natural anchor. A note's url is a link *out* from the note and gets
+            its own line below instead.
+          */}
+          {item.entry.data.url ? (
+            <a href={item.entry.data.url}>
+              {title}
+              <span class="visually-hidden"> (external link)</span>
+            </a>
+          ) : (
+            title
+          )}
+        </Heading>
+
+        <StashMeta
+          medium={item.entry.data.medium}
+          creator={item.entry.data.creator}
+          year={item.entry.data.year}
+          rating={item.entry.data.rating}
+          recommended={item.entry.data.recommended}
+        />
+      </>
+    ) : (
+      title && <Heading>{title}</Heading>
+    )
+  }
+
+  {/*
     Shares the prose styling with Post.astro rather than a component: nothing
     caps the height or clamps the text, because nothing enforces note length
     either (§3.5). A long note is meant to grow, not clip.
-  -->
-  <div class="prose">
-    <Content />
-  </div>
+
+    A JSX-style comment rather than an HTML one: HTML comments are real markup
+    and would ship to the browser once per item in the feed.
+  */}
+  {
+    hasBody && (
+      <div class="prose">
+        <Content />
+      </div>
+    )
+  }
 
   {
-    url && (
+    item.kind === 'note' && item.entry.data.url && (
       <p>
-        <a href={url}>{urlLabel ?? hostname(url)}</a>
+        <a href={item.entry.data.url}>
+          {item.entry.data.urlLabel ?? hostname(item.entry.data.url)}
+        </a>
         <span class="visually-hidden"> (external link)</span>
       </p>
     )

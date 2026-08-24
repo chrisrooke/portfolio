@@ -60,7 +60,12 @@ export function initFacetFilter(): void {
    * "1 of 19" on a page of seven posts — and hides the chips as a bonus.
    */
   const items = Array.from(list.querySelectorAll<HTMLElement>(':scope > li'));
+  /*
+   * Both forms, because naive +"s" produces "entrys". English plurals are not
+   * a rule the page should have to work around by picking a convenient noun.
+   */
   const noun = list.dataset.filterNoun ?? 'item';
+  const nounPlural = list.dataset.filterNounPlural ?? `${noun}s`;
 
   /*
    * Facets are discovered from the items, not from the controls. A facet with
@@ -239,7 +244,7 @@ export function initFacetFilter(): void {
 
         status.hidden = false;
         status.textContent =
-          `Showing ${shown} of ${items.length} ${shown === 1 ? noun : `${noun}s`}` +
+          `Showing ${shown} of ${items.length} ${shown === 1 ? noun : nounPlural}` +
           `, filtered by: ${described}.`;
       }
     }

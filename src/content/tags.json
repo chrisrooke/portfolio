@@ -14,5 +14,17 @@
   "process": {
     "name": "Process",
     "description": "How the work actually gets made."
+  },
+  "science-fiction": {
+    "name": "Science Fiction",
+    "description": "Speculative futures, in any medium."
+  },
+  "jazz": {
+    "name": "Jazz",
+    "description": "Spiritual, modal, and otherwise."
+  },
+  "documentary": {
+    "name": "Documentary",
+    "description": "Non-fiction film and television."
   }
 }
