@@ -1,7 +1,13 @@
 # Content Architecture
 
-Plan for the content model of the portfolio site. Written against **Astro 7.2.4**, which
-uses the Content Layer API with **Zod 4.4.3**.
+How the content model of this site works, and why it is shaped this way. Written against
+**Astro 7.2.4**, which uses the Content Layer API with **Zod 4.4.3**.
+
+This began as a plan and is now a description of what was built. Where the two diverged, the
+reasoning is recorded rather than quietly overwritten — several decisions here were changed
+by contact with the actual code, and the change is usually the interesting part. For a
+plain-language walkthrough of the finished thing, see
+[how-this-site-works.md](./how-this-site-works.md).
 
 > **Import `z` from `astro/zod`, not `astro:content`.** Astro 7 deprecates
 > `import { z } from 'astro:content'` — it still works but is slated for removal. Most
@@ -88,8 +94,8 @@ ERROR line.** That's the real one, and it names the file and field.
 
 ## 3. The collections
 
-Five collections. Pages (`/about`, `/404`) stay as plain `.astro` routes — a collection for
-a single About page is overhead with no payoff.
+Five collections. Standalone pages (`/about`, `/colophon`, `/sitemap`, `/404`) stay as plain
+`.astro` routes — a collection for a single About page is overhead with no payoff.
 
 ```
 Collection   Loader          Body        Purpose
@@ -105,12 +111,12 @@ stash        glob(*.md)      short       Books/film/music/games, w/ review
 Routes
 ──────
 /                       homepage — projects, then writing, then stream slice
-/writing                index + tag filters
+/writing                index + tag filter
 /writing/[id]           post page (internal posts only)
-/projects               index
+/projects               index (no filter — too few to need one)
 /projects/[id]          case study + its writing series
-/notes                  notes feed          (stream-only, fragment ids)
-/stash                  stash feed          (stream-only, fragment ids)
+/notes                  notes feed          + tag filter
+/stash                  stash feed          + 5 facets (§4.5)
 /about, /colophon, /404 static
 /sitemap                human index of everything
 /rss.xml                everything
@@ -119,10 +125,15 @@ Routes
 ```
 
 **Only `writing` and `projects` have dynamic routes.** Notes and Stash are stream-only by
-decision — they render inline in feeds and are never individually addressable. This is worth
-stating plainly because it removes two route files, two layouts, and the question of what a
+decision — they render inline in feeds and get no page of their own. This is worth stating
+plainly because it removes two route files, two layouts, and the question of what a
 single-note page would even contain. Reversible later: adding `/notes/[id]` needs one route
 file and no data changes.
+
+Stream-only does not mean *unaddressable*, a distinction Phase 10 forced. Each item carries a
+fragment id on its feed page (`/notes/#note-<id>`), because RSS readers key on the URL and
+would otherwise collapse eleven notes into one entry. No page per item, but a link per item —
+see §4.6.
 
 ### 3.1 Shared field groups
 
@@ -192,28 +203,8 @@ below.
 
 Adding tag pages later needs one new route file and zero data changes.
 
-### Filtering behaviour (Phase 5)
-
-Client-side, on `/writing`. No page-per-tag.
-
-- **Every post is rendered server-side**; filtering only toggles the `hidden` attribute. The
-  full list stays crawlable, and `hidden` needs no CSS to work — it's a UA default style,
-  which matters while `global.css` is empty.
-- **Multiple tags combine with OR, not AND.** Selecting Astro and Design Systems shows posts
-  matching either. Tags are a broadening tool; AND mostly yields empty results as a vocabulary
-  grows. Worth revisiting only if the tag list gets large enough that OR stops narrowing
-  usefully.
-- **No-JS baseline:** the filter UI ships with `hidden` and the script removes it. A control
-  that does nothing is worse than no control, so without JS visitors get the complete
-  unfiltered list and no broken buttons.
-- **State lives in the URL** (`?tag=astro&tag=design-systems`) via `history.replaceState`, so
-  a filtered view is shareable and survives reload. Unknown tags — a hand-edited address, or a
-  tag later removed from the vocabulary — are ignored *and stripped from the URL on load*, so
-  a shared link never claims a filter that isn't applied.
-- **Changes are announced.** A `role="status"` live region reports "Showing 3 of 4 posts,
-  tagged: …". Filtering is otherwise a silent visual change, leaving a screen reader user with
-  no signal anything happened. Hidden items also leave the accessibility tree entirely, which
-  is the correct behaviour and was verified in the browser.
+Filtering is a view-layer concern rather than a property of the vocabulary — **see §4.5**,
+which covers all three filtered pages.
 
 ### 3.3 `writing`
 
@@ -222,7 +213,7 @@ schema: ({ image }) => z.object({
   ...baseFields,
   ...titledFields,
   ...coverFields(image),
-  externalUrl: z.string().url().optional(),
+  externalUrl: z.url().optional(),
   externalSource: z.string().optional(),   // e.g. "Smashing Magazine"
 })
 ```
@@ -430,13 +421,16 @@ controlled vocabulary by another name and was rejected for the same reasons.
 ### 4.1 Draft and sort handling, once
 
 ```ts
-const isVisible = (entry: { data: { draft: boolean } }) =>
+export const isPublished = <T extends Dated>(entry: T): boolean =>
   import.meta.env.PROD ? !entry.data.draft : true;
 
-const byNewest = (a, b) => b.data.publishDate.valueOf() - a.data.publishDate.valueOf();
+export const byNewest = <T extends Dated>(a: T, b: T): number =>
+  b.data.publishDate.valueOf() - a.data.publishDate.valueOf();
 
-export async function getWriting() {
-  return (await getCollection('writing')).filter(isVisible).sort(byNewest);
+export async function getWriting(): Promise<WritingEntry[]> {
+  const entries = (await getCollection('writing')).filter(isPublished);
+  assertRenderable(entries);
+  return entries.sort(byNewest);
 }
 ```
 
@@ -446,10 +440,13 @@ Because this is the only place the filter exists, it cannot be forgotten on a ne
 `isPublished` and `byNewest` are generic over `baseFields`, so Projects, Notes, and Stash
 reuse them unchanged — there is one draft rule and one sort rule for the whole site.
 
-> **Build-time assertions only run if a page calls them.** `assertRenderable()` fires from
-> inside `getWriting()`, so it catches nothing on a build where no page calls `getWriting()`.
-> ✅ Live as of Phase 4 — both `/` and `/writing` call it on every build. Still not a linter:
-> if those two pages ever stop calling it, the check goes quiet without any warning.
+> **Build-time assertions only run if something calls them.** `assertRenderable()` fires from
+> inside `getWriting()`, so it catches nothing on a build where nothing calls `getWriting()`.
+> As of Phase 10 five call sites reach it — `/`, `/writing`, `/writing/[id]` (via
+> `getInternalWriting()`), `/sitemap`, and `lib/feeds.ts` for both RSS feeds — so it is well
+> anchored. Still not a linter, though: the guarantee is "something happens to ask", not "the
+> build checks". Same caveat applies to `assertNotesHaveBody()` and
+> `assertConsistentCreators()`.
 
 > **Dev server caches the content store.** A dev server started *before* `content.config.ts`
 > existed will serve zero entries and give no hint why. After changing collection config,
@@ -490,64 +487,21 @@ and re-sort, and `FeedItem.astro` branches on `kind`:
   *is* the work, so the title becomes the anchor. A note's url is a link *out* from the note
   and keeps its own line below the prose.
 
-**As originally built in Phase 7**, with one arm and no `getStream()`:
+Three further properties, established when the shape was first built and unchanged since:
 
-- Each collection owns its own `get…Feed()` that normalises its entries. `getStream()` is
-  then concatenate-and-sort and nothing else, which is the point of normalising.
+- **Each collection owns its own `get…Feed()`** that normalises its entries, so `getStream()`
+  is concatenate-and-sort and nothing else. That is the point of normalising.
 - **`byNewestItem`, not `byNewest`.** The normalised shape has a flat `date`; `byNewest`
   reads `data.publishDate`. Two comparators because there are genuinely two shapes — an
   earlier draft of this document called `byNewest` here and it would not have compiled.
 - **`FeedItem.astro` renders the body, not a preview of it.** No permalink means the feed
-  *is* the note: there is nowhere else for the content to live, nothing to link a title to,
-  and `render()` is called per item inside the component rather than by the page.
-- The component does **not** yet switch on `kind`. With one arm that would be a branch
-  pretending to be a seam. The discriminant is on the type, so Phase 8 adds a branch rather
-  than reshaping anything.
+  *is* the item: there is nowhere else for the content to live, and `render()` is called per
+  item inside the component rather than by the page.
 
-### 4.4 Homepage composition
-
-Three distinct sections, not one merged list, **in this order**:
-
-1. **Projects** — `getProjects()`, sliced. Leads the page: this is a portfolio, so the work
-   comes before the writing about the work.
-2. **Latest Writing** — `getWriting()`, sliced.
-3. **A slice of the Notes/Stash stream** — `getStream({ limit: n })`.
-
-Projects leading has a knock-on effect worth planning for: it's the first thing a visitor
-sees, so project cover images are doing the heaviest lifting on the site and should be
-treated as a first-class asset rather than an afterthought. It also means Phase 6 (Projects)
-is more load-bearing than its position in the order suggests — the homepage is incomplete
-until it lands.
-
-Keeping these separate rather than interleaving everything is deliberate. Each has different
-visual weight, and a long-form article sitting between a one-line note and a film rating
-reads as noise. Separate sections also mean a new post or project can never be buried under a
-week of notes — each section is its own guaranteed slot.
-
-**As built (Phase 9).** Counts are 2 projects, 3 posts, 4 stream items. The stream slice uses
-the same `FeedItem` as `/notes` and `/stash`, bodies and all — there is no `compact` variant,
-for two reasons. Notes have no permalink, so a truncated item on the homepage would point at
-a feed the reader then has to search; and a `compact` prop is exactly how a preview component
-starts accumulating the conditionals warned about below. The cost is that homepage length
-varies with whatever was posted last. If that bites, the fix is a smaller `STREAM_COUNT`, not
-truncation.
-
-Two consequences worth noting:
-
-- **`FeedItem`'s union stays two-armed** (`note | stash`). Only the stream needs
-  normalisation; Writing and Projects render through their own preview components. If they
-  ever do need to interleave, adding an arm is additive and TypeScript will flag every
-  `switch` that needs a new branch.
-- **One long-form layout, two optional slots.** `Post.astro` is shared by writing posts and
-  project case studies. Rather than a fourth prop cluster or a near-duplicate `Project.astro`,
-  it exposes `meta` (in the header — project facts and links out, or a post's "part n of m"
-  line) and `related` (after the body). Both render nothing when unfilled, so a plain writing
-  post is unaffected. Preview *components* stay separate; the layout is where sharing pays.
-- **Three preview components, not one generic one.** `WritingPreview`, `ProjectPreview`, and
-  `FeedItem` are separate. A single configurable preview that handles four content types via
-  props tends to accumulate conditionals until it's harder to read than the three components
-  it replaced — and these genuinely differ (Projects lead with cover art and tech, Writing
-  with title and intro). Shared *styling* is the layer to reuse, not a shared component.
+The union was deliberately built one-armed in Phase 7, with the `kind` discriminant already
+in place but no branch in the component — with a single arm, a switch would have been a
+branch pretending to be a seam. Phase 8 then added an arm rather than reshaping anything,
+which is the outcome the discriminant was there to buy.
 
 ### 4.3 Derived project ↔ writing relations
 
@@ -562,6 +516,53 @@ Built once, consumed by the Writing post page to render "Part 3 of 5 in *Buildin
 *Project*" with no numbering, and `SeriesList` renders a single link rather than a
 one-item `<ol>`. Same data, one presentational branch.
 
+### 4.4 Homepage composition
+
+Three distinct sections, not one merged list, **in this order**:
+
+1. **Projects** — `getProjects()`, sliced to 2. Leads the page: this is a portfolio, so the
+   work comes before the writing about the work.
+2. **Writing** — `getWriting()`, sliced to 3.
+3. **Lately** — `getStream()`, sliced to 4.
+
+All three slice at the call site rather than taking a `limit` argument, so the view layer has
+one way to return a collection and the page decides how much of it to show.
+
+Projects leading has a knock-on effect: it is the first thing a visitor sees, so project cover
+images do the heaviest lifting on the site and deserve treating as a first-class asset rather
+than an afterthought.
+
+Keeping these separate rather than interleaving everything is deliberate. Each has different
+visual weight, and a long-form article sitting between a one-line note and a film rating
+reads as noise. Separate sections also mean a new post or project can never be buried under a
+week of notes — each section is its own guaranteed slot.
+
+**The stream slice uses the same `FeedItem` as `/notes` and `/stash`, bodies and all** — there
+is no `compact` variant, for two reasons. Notes have no page of their own, so a truncated item
+on the homepage would point at a feed the reader then has to search; and a `compact` prop is
+exactly how a preview component starts accumulating the conditionals warned about below. The
+cost is that homepage length varies with whatever was posted last. If that bites, the fix is a
+smaller `STREAM_COUNT`, not truncation.
+
+Three consequences worth noting:
+
+- **`FeedItem`'s union stays two-armed** (`note | stash`). Only the stream needs
+  normalisation; Writing and Projects render through their own preview components. If they
+  ever do need to interleave, adding an arm is additive — though note that TypeScript will
+  *not* flag the component's existing branch as non-exhaustive, since there is no
+  `assertNever` in it. That was a deliberate omission: with two kinds and one component, the
+  compile error would have told you something you already knew.
+- **One long-form layout, two optional slots.** `Post.astro` is shared by writing posts and
+  project case studies. Rather than a fourth prop cluster or a near-duplicate `Project.astro`,
+  it exposes `meta` (in the header — project facts and links out, or a post's "part n of m"
+  line) and `related` (after the body). Both render nothing when unfilled, so a plain writing
+  post is unaffected. Preview *components* stay separate; the layout is where sharing pays.
+- **Three preview components, not one generic one.** `WritingPreview`, `ProjectPreview`, and
+  `FeedItem` are separate. A single configurable preview that handles four content types via
+  props tends to accumulate conditionals until it's harder to read than the three components
+  it replaced — and these genuinely differ (Projects lead with cover art and tech, Writing
+  with title and intro). Shared *styling* is the layer to reuse, not a shared component.
+
 ### 4.5 Faceted filtering
 
 `src/scripts/facet-filter.ts`, shared by `/writing`, `/notes` and `/stash`. Generalised out
@@ -574,6 +575,22 @@ Two combining rules, and the second is the whole reason for the rewrite:
   yields nothing as a vocabulary grows.
 - **AND across facets.** Medium "Film" and genre "Sci-fi" means sci-fi films. OR across
   facets would mean every film *plus* every sci-fi book, which nobody selecting both intends.
+
+The baseline behaviour, unchanged since Phase 5 and now shared by all three pages:
+
+- **Everything is rendered server-side**; filtering only toggles the `hidden` attribute. The
+  full list stays crawlable, and `hidden` needs no CSS to work — it is a UA default style,
+  which matters while `global.css` is empty.
+- **No-JS baseline:** the controls ship with `hidden` and the script removes it. A control
+  that does nothing is worse than no control, so without JS visitors get the complete
+  unfiltered list and no broken buttons.
+- **State lives in the URL** (`?tag=astro&medium=film`) via `history.replaceState`, so a
+  filtered view is shareable and survives reload. Values no item has are ignored *and
+  stripped from the URL on load*, so a shared link never claims a filter that isn't applied.
+- **Changes are announced.** A `role="status"` live region reports "Showing 3 of 6 entries,
+  filtered by: Science Fiction." Filtering is otherwise a silent visual change, leaving a
+  screen reader user with no signal anything happened. Hidden items leave the accessibility
+  tree entirely, which is correct and was verified in the browser.
 
 Three match modes, declared per facet rather than special-cased:
 
@@ -685,7 +702,7 @@ list". Either can exist without the other.
 options — that is microseconds, and the code stays a plain loop instead of an index that
 has to be invalidated. Revisit only if the Stash grows into the thousands.
 
-### 4.6 Syndication and addressability (Phase 10)
+### 4.6 Syndication and addressability
 
 > **⚠️ `site` in `astro.config.mjs` is a placeholder.** `https://chrisrooke.dev` was invented.
 > Change that one line before deploying: canonical URLs, `og:url`, every `<loc>` in the
@@ -755,10 +772,10 @@ src/
   content/
     fields.ts                # shared field groups
     tags.json
-    writing/*.mdx
-    projects/*.mdx
-    notes/*.md
-    stash/*.md
+    writing/*.mdx            # or <slug>/index.mdx where a post has its own cover
+    projects/*.mdx           # same — lattice/ holds index.mdx + cover.svg
+    notes/*.md               # YYYY-MM-DD-slug.md; most are untitled
+    stash/*.md               # covers/ alongside, shared by several entries
   lib/
     content.ts               # the view layer
     format.ts                # date formatting
@@ -797,14 +814,19 @@ src/
 ```
 
 **Colophon.** A static page describing the tools and decisions behind the site. Mostly hand
-written prose, but the dependency list can generate itself — an Astro frontmatter block can
-`import pkg from '../../package.json'` and render the real versions, so the page can't drift
-out of date the way a hand-maintained list would. Worth doing; it's about four lines.
+written prose, but the dependency list generates itself — the frontmatter does
+`import pkg from '../../package.json'` and renders the real versions, so the page cannot
+drift the way a hand-maintained list would. It also carries a "Typography and colour" section
+that currently says there is nothing to say yet, which will need writing once there is.
 
 Images live beside their posts in `src/content/` (or `src/assets/`) — **not** `public/`.
 Only files under `src/` go through Astro's image pipeline for resizing, `webp`/`avif`
 conversion, and automatic `width`/`height` (which prevents layout shift). Files in `public/`
 are copied verbatim and get none of that.
+
+The one deliberate exception is `public/og-default.png`, for the reasons in §4.6: a social
+card is fixed-size, never resized, and referenced by absolute URL, so it needs nothing the
+pipeline offers.
 
 > **Don't give an SVG cover a `widths` array.** Discovered in Phase 3: `<Image widths={[480,
 > 800, 1200]}>` on a vector emits three byte-identical copies under different hashes and a
@@ -884,7 +906,10 @@ Small and independently verifiable, so each one can be understood before the nex
 | **7.5** | ✅ `facet-filter.ts` + `FacetFilter.astro` + `lib/facets.ts`; `/writing` migrated, `/notes` filtered | Done — three modes, AND across / OR within, availability counts, link-driven facet, empty state |
 | **8** | ✅ `stash` collection, `/stash`, `StashMeta`, `getStream()`, creator-spelling guard, `FeedItem` union widened | Done — stream interleaves strictly by date, five facets combine, guard names both spellings |
 | **9** | ✅ Homepage assembled: projects, writing, stream slice | Done — three sections in order, outline h1→h2→h3 with no skips |
-| **10** | ✅ `/about`, `/colophon`, `/404`, `/sitemap`; RSS, `sitemap-index.xml`, OG images, `site` set | Done — 16 pages, every RSS fragment resolves to a real anchor |
+| **10** | ✅ `/about`, `/colophon`, `/404`, `/sitemap`; two RSS feeds, `sitemap-index.xml`, OG images, `site` set | Done — 18 routes, every RSS fragment resolves to a real anchor |
+
+The `/sitemap` page and the second RSS feed were both added during Phase 10 rather than
+planned: the original scope said "sitemap" meaning `sitemap.xml` only, and one feed.
 
 Phases 1–2 are the ones worth going slowly on — everything after reuses their patterns.
 
