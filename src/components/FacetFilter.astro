@@ -1,0 +1,97 @@
+---
+import type { FacetGroup } from '../lib/facets';
+
+interface Props {
+  groups: FacetGroup[];
+}
+
+const { groups } = Astro.props;
+
+// A group with nothing in it would render an empty, unlabelled menu.
+const visible = groups.filter((group) => group.options.length > 0);
+
+/*
+ * Checkboxes for facets you can multi-select, radios for the single-valued
+ * ones. These are what the controls genuinely are — a set of independent
+ * on/off choices, and a one-from-many choice — so the native elements come
+ * with grouping semantics, keyboard behaviour and state announcement already
+ * correct. See docs/content-architecture.md §4.5.
+ */
+const inputType = (group: FacetGroup) => (group.mode === 'at-least' ? 'radio' : 'checkbox');
+---
+
+{
+  visible.length > 0 && (
+    /*
+     * `hidden` by default, revealed by the filtering script. Without JS the
+     * controls would be inert, and a control that does nothing is worse than
+     * no control — so no-JS visitors simply see the full, unfiltered list.
+     *
+     * The `hidden` attribute works with no CSS loaded, since it's a UA default.
+     */
+    <div data-facet-filter hidden role="group" aria-label="Filters">
+      {visible.map((group) => (
+        <div data-facet-group={group.name} data-facet-mode={group.mode ?? 'one-of'}>
+          {/*
+            Native popover: the browser handles light-dismiss, top-layer
+            stacking and focus, which are the parts hand-rolled menus
+            reliably get wrong.
+          */}
+          <button type="button" popovertarget={`facet-${group.name}`} data-facet-trigger>
+            {group.label}
+            <span data-facet-active-count />
+          </button>
+
+          <div id={`facet-${group.name}`} popover>
+            <fieldset>
+              <legend>{group.label}</legend>
+
+              {group.options.map((option) => (
+                <label title={option.title}>
+                  <input
+                    type={inputType(group)}
+                    name={`facet-${group.name}`}
+                    data-facet={group.name}
+                    data-value={option.value}
+                  />
+                  <span data-facet-text>{option.label}</span>
+                  {/* Filled by the script: how many items this would leave. */}
+                  <span data-facet-count />
+                </label>
+              ))}
+
+              {group.mode === 'at-least' && (
+                /*
+                 * A radio group cannot be unset by clicking, so single-valued
+                 * facets need an explicit way back to "no filter" that isn't
+                 * the global clear-all.
+                 */
+                <label>
+                  <input
+                    type="radio"
+                    name={`facet-${group.name}`}
+                    data-facet={group.name}
+                    data-value=""
+                    checked
+                  />
+                  <span data-facet-text>Any</span>
+                </label>
+              )}
+            </fieldset>
+          </div>
+        </div>
+      ))}
+
+      {/*
+        One clear control for all facets, not one per group. With facets
+        combined by AND it is easy to filter yourself down to nothing, and the
+        way out should be a single obvious button rather than hunting for which
+        group is still active — particularly for a facet like creator that has
+        no menu to reopen.
+      */}
+      <button type="button" data-facet-clear hidden>
+        Clear filters
+      </button>
+    </div>
+  )
+}

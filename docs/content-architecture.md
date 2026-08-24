@@ -363,7 +363,7 @@ schema: ({ image }) => z.object({
   medium: z.enum(['book','film','tv','album','game','podcast','article']),
   creator: z.array(z.string()).default([]), // author / director / artist
   year: z.number().int().optional(),        // year of the work, not of logging
-  url: z.string().url().optional(),
+  url: z.url().optional(),
   rating: z.number().min(1).max(5).optional(),
   recommended: z.boolean().default(false),
   ...coverFields(image),
@@ -384,6 +384,20 @@ Notes on the shape:
 
 Stash entries are **stream-only** — no `/stash/[id]` permalinks, matching Notes, so the two
 behave identically when interleaved in a shared feed.
+
+**All five fields are filter facets** — see §4.5 for the mechanism. `medium`, `tag` and
+`creator` are `one-of`, `rating` is `at-least`, `recommended` is a `flag`, and they combine
+with AND.
+
+> **⚠️ Guard to write with the collection: near-duplicate creator slugs.** `creator` is
+> free text, so unlike `tags` there is no `reference()` validating it. "Bong Joon-ho" in one
+> entry and "Bong Joon Ho" in another silently become two facet values that each match one
+> item, and nothing errors — the filter just quietly under-reports. `getStash()` should
+> compare creator slugs normalised past case, punctuation and whitespace, and throw naming
+> both spellings and the entries they came from. This is the same class of check as
+> `assertRenderable()` and `assertNotesHaveBody()`: the thing the schema structurally cannot
+> see. It lands with Phase 8 rather than Phase 7's extraction, because there is no collection
+> to check until then.
 
 ---
 
@@ -503,6 +517,129 @@ Built once, consumed by the Writing post page to render "Part 3 of 5 in *Buildin
 *Project*" with no numbering, and `SeriesList` renders a single link rather than a
 one-item `<ol>`. Same data, one presentational branch.
 
+### 4.5 Faceted filtering
+
+`src/scripts/facet-filter.ts`, shared by `/writing`, `/notes` and `/stash`. Generalised out
+of the single-facet script Phase 5 left inline in `/writing/index.astro`, once it was clear
+that Notes wanted filters and Stash wanted five of them.
+
+Two combining rules, and the second is the whole reason for the rewrite:
+
+- **OR within a facet.** Tag "Astro" or "Process" shows either. Tags broaden; AND mostly
+  yields nothing as a vocabulary grows.
+- **AND across facets.** Medium "Film" and genre "Sci-fi" means sci-fi films. OR across
+  facets would mean every film *plus* every sci-fi book, which nobody selecting both intends.
+
+Three match modes, declared per facet rather than special-cased:
+
+| Mode | Semantics | Used by |
+|---|---|---|
+| `one-of` (default) | item's values intersect the active set | tag, medium, creator |
+| `at-least` | numeric value ≥ threshold; single-valued | rating |
+| `flag` | value is `true` | recommended |
+
+**Facets are discovered from the items, not from the controls.** The script scans
+`data-facet-*` on each item and builds the known value set from what is actually present.
+Two things fall out of that:
+
+- A button for a value no item has can never be rendered, extending the `getTagsInUse()`
+  guarantee to every facet.
+- **A facet needs no buttons at all.** This is what makes `creator` workable. Rendering a
+  button per director and musician would mean an unbounded list of proper nouns — a phone
+  book, not a filter — so instead the creator's name *in the entry* is the control:
+  `dir. Denis Villeneuve` links to `?creator=denis-villeneuve`. The facet is discovered
+  through the content rather than presented up front.
+
+Values in a URL are validated against the items too, so a hand-edited or stale address drops
+the unknown parts and rewrites itself rather than silently claiming a filter it hasn't
+applied.
+
+#### Availability: what greys out, and what must not
+
+An option that would return nothing is marked unavailable rather than left to disappoint.
+The rule is one line, and the subtlety is in which selections it counts against:
+
+> **A value's count is computed against every *other* facet, ignoring its own facet's
+> current selection.**
+
+That falls out of OR-within/AND-across rather than being a separate policy. Values inside a
+facet are ORed, so choosing "Film" must *not* grey out "Book" — you can have both, and the
+result is films plus books. But "Horror" is a genre spanning both, so once "Film" is chosen
+it should grey out if no film is tagged horror. Excluding the facet from its own count gives
+exactly that, with no hand-maintained map of which facets interact.
+
+Verified against the fixture — with **Film** selected:
+
+```
+Medium  Film 2 ✓on   Book 1        Album 1      ← same facet, all stay live
+Genre   Sci-fi 1     Drama 1       Jazz 0 dead  ← no film is jazz
+Rating  5: 1         4+: 1         3+: 2
+```
+
+Two rules keep it from trapping anyone:
+
+- **An active value is never marked unavailable**, or there would be no way to switch it off.
+  A dead end reached by URL (`?tag=jazz&medium=film`) shows the empty state with both
+  selections still live, so one click escapes it.
+- **`aria-disabled`, never the `disabled` attribute.** A disabled control drops out of the
+  tab order and most screen reader listings, so a non-sighted user cannot discover the option
+  exists at all — they just get a shorter list than everyone else. `aria-disabled` keeps it
+  focusable and announced, and the click handler is what declines. Counts are rendered as
+  text rather than conveyed by styling alone.
+
+This makes the empty state rare rather than unnecessary — it is still reachable through a
+shared or hand-edited URL, so it stays.
+
+#### The controls are not part of the contract
+
+The script binds to **anything** carrying `data-facet` and `data-value` — checkbox, radio,
+button, or link — and reflects state by `checked` on inputs and `aria-pressed` on everything
+else. Presentation is therefore free to change without touching the filtering logic.
+
+What `FacetFilter.astro` currently renders, and why:
+
+- **A native `popover` per facet**, opened by a `<button popovertarget>`. The browser handles
+  light-dismiss, top-layer stacking and focus — the parts hand-rolled menus reliably get
+  wrong. The trigger shows a count of that facet's active values.
+- **Checkboxes for `one-of`, radios for `at-least`**, inside a `<fieldset>` with a `<legend>`.
+  These are what the controls genuinely *are* — independent on/off choices, and a
+  one-from-many choice — so grouping, keyboard behaviour and state announcement come free
+  rather than being reconstructed with `aria-pressed` on a row of buttons.
+- **An "Any" radio** on single-valued facets, since a radio group cannot be unset by clicking
+  and the global clear-all is too blunt for one facet.
+
+A creator link inside an entry (`Denis Villeneuve` → `?creator=denis-villeneuve`) is an
+*additional* entry point, not the mechanism. It answers a different question — "more by this
+person", asked while reading — and is orthogonal to the menu, which answers "narrow this
+list". Either can exist without the other.
+
+**Markup contract** (was implicit in Phase 5, written down now that three pages depend on it):
+
+```
+[data-facet-filter]                    controls root, hidden until JS reveals it
+  [data-facet-group="<name>"]            optional [data-facet-mode]
+    [data-facet-trigger]                   optional; may hold [data-facet-active-count]
+    [data-facet][data-value]               any element; data-value="" means "no filter"
+      [data-facet-text]                    label text, for the status region
+      [data-facet-count]                   filled with the availability count
+[data-facet-clear]                     one clear-all control
+[data-filterable-list]                 optional [data-filter-noun="post"]
+  :scope > li[data-facet-<name>]         space-separated values
+[data-filter-status]                   role="status" live region
+[data-filter-empty]                    shown when nothing matches
+```
+
+> **`:scope >`, not a descendant selector.** Previews render their own `<ul>` of tag chips,
+> so `querySelectorAll('li')` counts every chip as a filterable item — "1 of 19" on a page of
+> seven posts — and hides the chips whenever a filter is active. Caught in testing during the
+> Phase 7 extraction; the Phase 5 version was accidentally safe because it selected
+> `li[data-tags]`.
+
+**Cost, for the record.** Availability is recomputed for every option on every change:
+`items × facets × values`. At the scale of a personal site — tens of items, low tens of
+options — that is microseconds, and the code stays a plain loop instead of an index that
+has to be invalidated. Revisit only if the Stash grows into the thousands.
+
 ---
 
 ## 5. Directory layout
@@ -521,13 +658,16 @@ src/
     content.ts               # the view layer
     format.ts                # date formatting
     images.ts                # cover <Image> props + the vector guard
+    facets.ts                # filter group shapes + the shared tag facet
+  scripts/
+    facet-filter.ts          # client-side faceted filtering (§4.5)
   components/
     WritingPreview.astro
     ProjectPreview.astro
     ProjectMeta.astro
     SeriesList.astro
     FeedItem.astro
-    TagFilter.astro
+    FacetFilter.astro
   layouts/
     Base.astro
     Post.astro
@@ -592,20 +732,16 @@ against a card grid that does not exist yet — and since Projects lead the home
 covers are the heaviest assets on the site, so that pair matters more than `Post.astro`'s.
 **Two placeholders to revisit now, not one.**
 
-### ⚠️ Revisit: the tag filter script is trapped in one page
+### ✅ Resolved: the tag filter script is no longer trapped in one page
 
-Phase 5 put the client-side filtering script inline at the bottom of
-`/writing/index.astro`, which was right at the time — one page needed it.
+Phase 5 put the filtering script inline at the bottom of `/writing/index.astro`, which was
+right at the time — one page needed it. It came out in Phase 7.5 as `facet-filter.ts`, and
+generalised rather than merely moved, because the second and third consumers turned out to
+need more than one facet. See §4.5 for the model and the markup contract.
 
-`/notes` is the first page that plausibly wants the same behaviour, and Phase 7 deliberately
-shipped without it rather than paste ~90 lines of DOM code into a second file. The moment a
-second page needs filtering, the script moves to `src/scripts/tag-filter.ts` and both pages
-import it. That refactor is cheap while there is exactly one copy and gets steadily less
-cheap after that, so it should happen *with* the second consumer, not after the third.
-
-The markup contract the script depends on is already implicit and worth writing down when it
-moves: a `[data-tag-filter]` root, a `[data-filterable-list]` containing `li[data-tags]`, and
-an optional `[data-filter-status]` live region.
+Worth keeping as a pattern: the extraction happened *with* the second consumer, and the
+generalisation was designed against the third's requirements while there was still exactly
+one copy to change.
 
 ---
 
@@ -620,10 +756,11 @@ Small and independently verifiable, so each one can be understood before the nex
 | **2** | ✅ `src/lib/content.ts` — `getWriting()`, draft filter, sort, renderable assertion | Done — dev 4 / prod 3, order correct, assertion fires |
 | **3** | ✅ `/writing/[...id]` + `Post.astro` + `lib/format.ts` + `resolveTags()` | Done — internal 200, external 404 by design |
 | **4** | ✅ `WritingPreview.astro`; `/writing` index; homepage Writing section | Done — both kinds preview identically, link differently |
-| **5** | ✅ `TagFilter.astro` + client-side filtering on `/writing` | Done — multi-select OR, URL-synced, no-JS safe |
+| **5** | ✅ `TagFilter.astro` + client-side filtering on `/writing` | Done — multi-select OR, URL-synced, no-JS safe (superseded by 7.5) |
 | **6** | ✅ `projects` collection, `[...id]` route, `ProjectPreview`, `SeriesList`, derived reverse lookup, homepage Projects section | Done — series renders in array order, posts show "Part n of m", both guards fire |
 | **7** | ✅ `notes` collection, `/notes` feed, `FeedItem`, `getNoteFeed()` normalisation | Done — dev 6 / prod 5, both guards fire, long note renders unclipped |
-| **8** | `stash` collection + `/stash`; `getStream()` combined feed | Notes and Stash interleave correctly by date |
+| **7.5** | ✅ `facet-filter.ts` + `FacetFilter.astro` + `lib/facets.ts`; `/writing` migrated, `/notes` filtered | Done — three modes, AND across / OR within, availability counts, link-driven facet, empty state |
+| **8** | `stash` collection + `/stash`; `getStream()` combined feed; creator-slug guard | Notes and Stash interleave correctly by date; five facets combine |
 | **9** | Homepage assembled: projects, writing, stream slice | All three sections live in order |
 | **10** | `/about`, `/colophon`, `/404`; RSS, sitemap, OG images | — |
 
@@ -657,4 +794,12 @@ are already reflected in the sections above.
 | Preview components | **Three separate** (`WritingPreview`, `ProjectPreview`, `FeedItem`), sharing styles not structure. |
 | Link text for a note's `url` | **`urlLabel`, falling back to the host.** "docs.astro.build" is tidier than the raw URL and more honest than a generic "read it" — the reader sees where they're going. |
 | Naming an untitled note | **`aria-label="Note — {date}"` on the `<article>`.** Untitled is the common case, which otherwise leaves an unnamed article in a screen reader's element list. Titled notes get no label; the heading already names them. |
-| Tag filtering on `/notes` | **Deferred, not rejected.** See the note below — the filter script has to come out of `/writing/index.astro` first. |
+| Tag filtering on `/notes` | **Yes**, once the script was extracted in 7.5. |
+| Genre as tags | **Yes** — same shared vocabulary. `getTagsInUse()` derives options per page, so `/writing` never offers "Horror" and `/stash` never offers "Astro". |
+| Creator as tags | **No.** Unbounded proper nouns would turn a curated vocabulary into hundreds of single-use entries. Free-text field, guarded against near-duplicate spellings instead. |
+| Creator filter UI | **Links in the content, no button bar.** A button per director is a phone book. The facet exists in the model and the URL; the name in the entry is the control. |
+| Rating as a facet | **`at-least`, not a tag.** Ratings are ordinal — you want ≥ 4, and tags have no ≥. |
+| Dead filter combinations | **Greyed out with a count**, computed per-facet excluding its own selection — so sibling options in one menu never disable each other. Empty state kept as the backstop for URLs. |
+| Unavailable option markup | **`aria-disabled`, not `disabled`.** Keeps the option focusable and discoverable; the click handler declines. Never active-and-disabled at once. |
+| Filter control type | **Checkboxes and radios in a native `popover`**, not toggle buttons — the controls are genuinely a multi-select and a one-from-many. The script binds to any element with `data-facet`/`data-value`, so this is swappable without touching the logic. |
+| Creator links vs the menu | **Both, independently.** The menu narrows a list; a name in an entry answers "more by this person". Neither is the mechanism — the URL is. |

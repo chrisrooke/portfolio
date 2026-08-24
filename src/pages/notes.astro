@@ -1,7 +1,9 @@
 ---
 import Base from '../layouts/Base.astro';
 import FeedItem from '../components/FeedItem.astro';
-import { getNoteFeed } from '../lib/content';
+import FacetFilter from '../components/FacetFilter.astro';
+import { getNoteFeed, getTagsInUse } from '../lib/content';
+import { tagFacet, facetValues } from '../lib/facets';
 
 /*
  * A single page, not a directory: notes are stream-only, so there is no
@@ -9,22 +11,39 @@ import { getNoteFeed } from '../lib/content';
  * route file if that ever changes — see docs/content-architecture.md §3.5.
  */
 const items = await getNoteFeed();
+
+// The normalised shape already carries tag slugs, so the item attribute needs
+// no second pass over entry.data — this is what getNoteFeed() flattened them for.
+const tags = await getTagsInUse(items.map((item) => item.entry));
+const groups = [tagFacet(tags)];
 ---
 
 <Base title="Notes" description="Short thoughts, links worth keeping, and things half-figured-out.">
   <h1>Notes</h1>
 
+  <FacetFilter groups={groups} />
+
+  <p data-filter-status role="status" aria-live="polite" hidden></p>
+
   {
     items.length > 0 ? (
-      <ul role="list">
-        {items.map((item) => (
-          <li>
-            <FeedItem item={item} headingLevel={2} />
-          </li>
-        ))}
-      </ul>
+      <>
+        <ul role="list" data-filterable-list data-filter-noun="note">
+          {items.map((item) => (
+            <li data-facet-tag={facetValues(item.tags)}>
+              <FeedItem item={item} headingLevel={2} />
+            </li>
+          ))}
+        </ul>
+
+        <p data-filter-empty hidden>No notes match those filters.</p>
+      </>
     ) : (
       <p>Nothing published yet.</p>
     )
   }
 </Base>
+
+<script>
+  import '../scripts/facet-filter';
+</script>
