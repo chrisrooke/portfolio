@@ -1,0 +1,61 @@
+---
+import { resolveTags, writingHref, isExternal, type WritingEntry } from '../lib/content';
+import { formatDate, machineDate } from '../lib/format';
+
+interface Props {
+  entry: WritingEntry;
+  /**
+   * Heading level for the post title. Previews appear under different parents
+   * — an <h1> on /writing, an <h2> section heading on the homepage — and the
+   * document outline should stay correct in both. Defaults to h2.
+   */
+  headingLevel?: 2 | 3 | 4;
+}
+
+const { entry, headingLevel = 2 } = Astro.props;
+
+// Astro components can await in frontmatter, so the preview resolves its own
+// tags rather than making every caller do it.
+const tags = await resolveTags(entry);
+
+const external = isExternal(entry);
+const href = writingHref(entry);
+const { title, intro, publishDate, externalSource } = entry.data;
+
+const Heading = `h${headingLevel}` as 'h2' | 'h3' | 'h4';
+---
+
+<article data-external={external ? '' : undefined}>
+  <Heading>
+    <!--
+      The link wraps the title only, not the whole card. A card-wide anchor
+      makes the text unselectable and announces the entire block as one long
+      link name to a screen reader.
+    -->
+    <a href={href}>{title}</a>
+  </Heading>
+
+  <p>{intro}</p>
+
+  <p>
+    <time datetime={machineDate(publishDate)}>{formatDate(publishDate)}</time>
+    {
+      external && (
+        <span>
+          {externalSource ? ` · on ${externalSource}` : ' · published elsewhere'}
+          <span class="visually-hidden"> (external link)</span>
+        </span>
+      )
+    }
+  </p>
+
+  {
+    tags.length > 0 && (
+      <ul role="list" aria-label="Tags">
+        {tags.map((tag) => (
+          <li>{tag.data.name}</li>
+        ))}
+      </ul>
+    )
+  }
+</article>

@@ -1,11 +1,33 @@
 ---
 import Base from '../layouts/Base.astro';
+import WritingPreview from '../components/WritingPreview.astro';
+import { getWriting } from '../lib/content';
+
+/**
+ * Partial homepage. Final composition is Projects, then Writing, then a slice
+ * of the Notes/Stash stream — see docs/content-architecture.md §4.4. Projects
+ * arrive in Phase 6 and the stream in Phase 8, so only Writing is live here.
+ */
+const RECENT_COUNT = 3;
+const recentWriting = (await getWriting()).slice(0, RECENT_COUNT);
 ---
 
 <Base title="Chris Rooke" description="Portfolio, writing, and notes.">
   <h1>Chris Rooke</h1>
-  <p>
-    Placeholder homepage. Assembled properly in Phase 9 — projects, then writing,
-    then a slice of the notes/stash stream.
-  </p>
+
+  <section aria-labelledby="recent-writing">
+    <h2 id="recent-writing">Writing</h2>
+
+    <ul role="list">
+      {
+        recentWriting.map((entry) => (
+          <li>
+            <WritingPreview entry={entry} headingLevel={3} />
+          </li>
+        ))
+      }
+    </ul>
+
+    <p><a href="/writing">All writing</a></p>
+  </section>
 </Base>

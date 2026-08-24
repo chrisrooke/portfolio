@@ -1,0 +1,141 @@
+---
+import Base from '../../layouts/Base.astro';
+import WritingPreview from '../../components/WritingPreview.astro';
+import TagFilter from '../../components/TagFilter.astro';
+import { getWriting, getTagsInUse, tagSlugs } from '../../lib/content';
+
+const posts = await getWriting();
+const tags = await getTagsInUse(posts);
+---
+
+<Base
+  title="Writing"
+  description="Articles on design systems, accessibility, and building for the web."
+>
+  <h1>Writing</h1>
+
+  <TagFilter tags={tags} />
+
+  <!--
+    role="status" announces changes politely to screen readers without moving
+    focus. Filtering is otherwise a silent visual change — items just vanish —
+    which leaves a non-sighted user with no idea anything happened.
+  -->
+  <p data-filter-status role="status" aria-live="polite" hidden></p>
+
+  {
+    posts.length > 0 ? (
+      <ul role="list" data-filterable-list>
+        {posts.map((entry) => (
+          <li data-tags={tagSlugs(entry)}>
+            <WritingPreview entry={entry} headingLevel={2} />
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <p>Nothing published yet.</p>
+    )
+  }
+</Base>
+
+<script>
+  /**
+   * Client-side tag filtering.
+   *
+   * All posts are rendered server-side and filtering only toggles visibility,
+   * so the full list stays crawlable and works with JS disabled.
+   *
+   * Multiple tags combine with OR, not AND: selecting "Astro" and "Process"
+   * shows posts matching either. Tags are a broadening tool — AND would mostly
+   * produce empty results as the vocabulary grows.
+   */
+  const root = document.querySelector<HTMLElement>('[data-tag-filter]');
+  const list = document.querySelector<HTMLElement>('[data-filterable-list]');
+  const status = document.querySelector<HTMLElement>('[data-filter-status]');
+
+  if (root && list) {
+    const buttons = Array.from(
+      root.querySelectorAll<HTMLButtonElement>('button[data-tag]'),
+    );
+    const clearButton = root.querySelector<HTMLButtonElement>('[data-tag-clear]');
+    const items = Array.from(list.querySelectorAll<HTMLElement>('li[data-tags]'));
+    const active = new Set<string>();
+
+    const PARAM = 'tag';
+
+    /** Reflect the active filters in the URL so a filtered view can be shared. */
+    function syncUrl() {
+      const url = new URL(window.location.href);
+      url.searchParams.delete(PARAM);
+      for (const tag of active) url.searchParams.append(PARAM, tag);
+      history.replaceState(null, '', url);
+    }
+
+    function apply() {
+      let shown = 0;
+
+      for (const item of items) {
+        const itemTags = (item.dataset.tags ?? '').split(' ').filter(Boolean);
+        const match = active.size === 0 || itemTags.some((t) => active.has(t));
+        item.hidden = !match;
+        if (match) shown += 1;
+      }
+
+      for (const button of buttons) {
+        const isActive = active.has(button.dataset.tag ?? '');
+        button.setAttribute('aria-pressed', String(isActive));
+      }
+
+      if (clearButton) clearButton.hidden = active.size === 0;
+
+      if (status) {
+        if (active.size === 0) {
+          status.hidden = true;
+          status.textContent = '';
+        } else {
+          status.hidden = false;
+          const names = buttons
+            .filter((b) => active.has(b.dataset.tag ?? ''))
+            .map((b) => b.textContent?.trim())
+            .join(', ');
+          status.textContent =
+            `Showing ${shown} of ${items.length} ` +
+            `${items.length === 1 ? 'post' : 'posts'}, tagged: ${names}.`;
+        }
+      }
+    }
+
+    for (const button of buttons) {
+      button.addEventListener('click', () => {
+        const tag = button.dataset.tag;
+        if (!tag) return;
+        if (active.has(tag)) active.delete(tag);
+        else active.add(tag);
+        apply();
+        syncUrl();
+      });
+    }
+
+    clearButton?.addEventListener('click', () => {
+      active.clear();
+      apply();
+      syncUrl();
+    });
+
+    // Restore state from the URL, ignoring any tag with no matching button —
+    // a hand-edited address, or a tag removed from the vocabulary since the
+    // link was shared.
+    const valid = new Set(buttons.map((b) => b.dataset.tag));
+    const requested = new URLSearchParams(window.location.search).getAll(PARAM);
+    for (const tag of requested) {
+      if (valid.has(tag)) active.add(tag);
+    }
+
+    root.hidden = false;
+    apply();
+
+    // Rewrite the URL if any requested tag was dropped, so a shared link never
+    // claims a filter that isn't actually applied.
+    if (requested.length !== active.size) syncUrl();
+  }
+</script>

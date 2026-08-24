@@ -1,0 +1,39 @@
+---
+import type { TagEntry } from '../lib/content';
+
+interface Props {
+  tags: TagEntry[];
+}
+
+const { tags } = Astro.props;
+---
+
+{
+  tags.length > 0 && (
+    /*
+     * `hidden` by default, revealed by the filtering script. Without JS the
+     * buttons would be inert, and a control that does nothing is worse than no
+     * control — so no-JS visitors simply see the full, unfiltered list.
+     *
+     * The `hidden` attribute works with no CSS loaded, since it's a UA default.
+     */
+    <div data-tag-filter hidden>
+      <div role="group" aria-label="Filter writing by tag">
+        {tags.map((tag) => (
+          <button
+            type="button"
+            data-tag={tag.id}
+            aria-pressed="false"
+            title={tag.data.description}
+          >
+            {tag.data.name}
+          </button>
+        ))}
+
+        <button type="button" data-tag-clear hidden>
+          Clear filters
+        </button>
+      </div>
+    </div>
+  )
+}

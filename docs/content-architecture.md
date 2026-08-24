@@ -181,10 +181,35 @@ it directly.
 
 **One vocabulary, not one per collection.** A "sci-fi" tag on a Stash book and on a Writing
 post is the same tag. Each filter UI derives its options from the tags *actually in use* in
-that collection, so `/writing` never offers a filter that returns nothing. Stash's
-medium-specific metadata (`creator`, `medium`) is *not* tags — it's structured fields, below.
+that collection (`getTagsInUse()`), so `/writing` never offers a filter that returns nothing,
+and the vocabulary can hold tags reserved for future use without them showing as dead buttons.
+Stash's medium-specific metadata (`creator`, `medium`) is *not* tags — it's structured fields,
+below.
 
 Adding tag pages later needs one new route file and zero data changes.
+
+### Filtering behaviour (Phase 5)
+
+Client-side, on `/writing`. No page-per-tag.
+
+- **Every post is rendered server-side**; filtering only toggles the `hidden` attribute. The
+  full list stays crawlable, and `hidden` needs no CSS to work — it's a UA default style,
+  which matters while `global.css` is empty.
+- **Multiple tags combine with OR, not AND.** Selecting Astro and Design Systems shows posts
+  matching either. Tags are a broadening tool; AND mostly yields empty results as a vocabulary
+  grows. Worth revisiting only if the tag list gets large enough that OR stops narrowing
+  usefully.
+- **No-JS baseline:** the filter UI ships with `hidden` and the script removes it. A control
+  that does nothing is worse than no control, so without JS visitors get the complete
+  unfiltered list and no broken buttons.
+- **State lives in the URL** (`?tag=astro&tag=design-systems`) via `history.replaceState`, so
+  a filtered view is shareable and survives reload. Unknown tags — a hand-edited address, or a
+  tag later removed from the vocabulary — are ignored *and stripped from the URL on load*, so
+  a shared link never claims a filter that isn't applied.
+- **Changes are announced.** A `role="status"` live region reports "Showing 3 of 4 posts,
+  tagged: …". Filtering is otherwise a silent visual change, leaving a screen reader user with
+  no signal anything happened. Hidden items also leave the accessibility tree entirely, which
+  is the correct behaviour and was verified in the browser.
 
 ### 3.3 `writing`
 
@@ -333,10 +358,10 @@ Because this is the only place the filter exists, it cannot be forgotten on a ne
 `isPublished` and `byNewest` are generic over `baseFields`, so Projects, Notes, and Stash
 reuse them unchanged — there is one draft rule and one sort rule for the whole site.
 
-> **Caveat: build-time assertions only run if a page calls them.** `assertRenderable()` fires
-> from inside `getWriting()`, so it catches nothing on a build where no page happens to call
-> `getWriting()`. From Phase 4 onward the homepage and `/writing` both call it on every build,
-> so it's always live — but it is not a linter, and it can't be relied on before then.
+> **Build-time assertions only run if a page calls them.** `assertRenderable()` fires from
+> inside `getWriting()`, so it catches nothing on a build where no page calls `getWriting()`.
+> ✅ Live as of Phase 4 — both `/` and `/writing` call it on every build. Still not a linter:
+> if those two pages ever stop calling it, the check goes quiet without any warning.
 
 > **Dev server caches the content store.** A dev server started *before* `content.config.ts`
 > existed will serve zero entries and give no hint why. After changing collection config,
@@ -453,6 +478,40 @@ Only files under `src/` go through Astro's image pipeline for resizing, `webp`/`
 conversion, and automatic `width`/`height` (which prevents layout shift). Files in `public/`
 are copied verbatim and get none of that.
 
+> **Don't give an SVG cover a `widths` array.** Discovered in Phase 3: `<Image widths={[480,
+> 800, 1200]}>` on a vector emits three byte-identical copies under different hashes and a
+> `srcset` that can never do anything, since vectors scale for free. `Post.astro` guards on
+> `cover.format === 'svg'` and drops both `widths` and `sizes` for vectors. This mattered only
+> because the sample cover is an SVG — real photographic covers want the full srcset — but the
+> guard is correct to keep either way.
+
+### ⚠️ Revisit: `widths` and `sizes` are placeholders
+
+`Post.astro` currently declares `widths={[480, 800, 1200]}` and
+`sizes="(min-width: 60rem) 60rem, 100vw"`. **Both numbers were invented before any design
+existed and must be revisited once the responsive layout is settled.** They are not sensible
+defaults — they are guesses that happen to build.
+
+Why it matters more than it looks:
+
+- **`sizes` must describe the real layout.** It tells the browser how wide the image will
+  actually be drawn, and the browser trusts it completely. Overstate it and every visitor
+  over-downloads on every page; understate it and images render soft. A wrong `sizes` fails
+  silently — nothing errors, the page just costs more or looks worse.
+- **Device pixel ratio multiplies the requirement.** The browser picks a candidate using
+  `display width × DPR`, so a 960px-wide image on a 2× retina screen needs a **1920px**
+  candidate. With 1200 as the current ceiling, retina laptops already get a soft image.
+  Rule of thumb: the top of the `widths` array should be about **max display width × 2**.
+  (2× rather than 3× — file size grows with the square of width, and the gain above 2× is
+  marginal even on 3× phones.)
+- **`densities` is the better prop for fixed-size images** — avatars, logos, anything always
+  drawn at one size. `widths` and `densities` are mutually exclusive in Astro's types
+  (`densities?: never`), so this is an either/or per image, decided by whether the display
+  size is fluid or fixed.
+
+Applies to every `<Image>` added from here on, not just `Post.astro` — the preview components
+in Phases 4 and 6 will each need their own `sizes` matching their own card widths.
+
 ---
 
 ## 6. Implementation phases
@@ -464,9 +523,9 @@ Small and independently verifiable, so each one can be understood before the nex
 | **0** | ✅ `.gitignore`; `astro add mdx`; directory skeleton; `Base.astro`; empty `global.css` | Done — `astro build` passes, homepage renders |
 | **1** | ✅ `tags.json`; `fields.ts`; `content.config.ts`; `writing` + 3 sample posts | Done — entries load, refs resolve, both failure modes verified |
 | **2** | ✅ `src/lib/content.ts` — `getWriting()`, draft filter, sort, renderable assertion | Done — dev 4 / prod 3, order correct, assertion fires |
-| **3** | `/writing/[...id]` route + `Post.astro`; external posts correctly excluded | Internal posts render; external ones 404 by design |
-| **4** | `WritingPreview.astro`; wire into `/writing` index and homepage | Both post kinds preview identically, link differently |
-| **5** | Tag filter UI on `/writing` | Filtering works; options derive from tags in use |
+| **3** | ✅ `/writing/[...id]` + `Post.astro` + `lib/format.ts` + `resolveTags()` | Done — internal 200, external 404 by design |
+| **4** | ✅ `WritingPreview.astro`; `/writing` index; homepage Writing section | Done — both kinds preview identically, link differently |
+| **5** | ✅ `TagFilter.astro` + client-side filtering on `/writing` | Done — multi-select OR, URL-synced, no-JS safe |
 | **6** | `projects` collection, `[...id]` route, `ProjectPreview`, series list, derived reverse lookup | Project page lists its series; posts show "Part n of m" |
 | **7** | `notes` collection + `/notes` feed + `FeedItem` | Notes feed renders |
 | **8** | `stash` collection + `/stash`; `getStream()` combined feed | Notes and Stash interleave correctly by date |

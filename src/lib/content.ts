@@ -1,4 +1,4 @@
-import { getCollection, type CollectionEntry } from 'astro:content';
+import { getCollection, getEntries, type CollectionEntry } from 'astro:content';
 
 /**
  * The view layer. Pages import from here and never call getCollection()
@@ -68,3 +68,41 @@ export async function getWriting(): Promise<WritingEntry[]> {
 export async function getInternalWriting(): Promise<WritingEntry[]> {
   return (await getWriting()).filter((entry) => !isExternal(entry));
 }
+
+export type TagEntry = CollectionEntry<'tags'>;
+
+/**
+ * Resolves an entry's tag references into full tag entries, so components can
+ * show display names ("Design Systems") rather than slugs ("design-systems").
+ */
+export async function resolveTags(entry: {
+  data: { tags: { collection: 'tags'; id: string }[] };
+}): Promise<TagEntry[]> {
+  if (entry.data.tags.length === 0) return [];
+  return getEntries(entry.data.tags);
+}
+
+/**
+ * The tags actually applied to a given set of entries, alphabetical by display
+ * name.
+ *
+ * Filter UI is built from this rather than from the whole `tags` collection,
+ * so a filter can never be offered that would return nothing. It also means
+ * the vocabulary can hold tags reserved for future use without them appearing
+ * as dead buttons.
+ */
+export async function getTagsInUse(entries: {
+  data: { tags: { id: string }[] };
+}[]): Promise<TagEntry[]> {
+  const used = new Set(entries.flatMap((entry) => entry.data.tags.map((t) => t.id)));
+  if (used.size === 0) return [];
+
+  const all = await getCollection('tags');
+  return all
+    .filter((tag) => used.has(tag.id))
+    .sort((a, b) => a.data.name.localeCompare(b.data.name));
+}
+
+/** Tag slugs for an entry, for data attributes consumed by client-side filtering. */
+export const tagSlugs = (entry: { data: { tags: { id: string }[] } }): string =>
+  entry.data.tags.map((t) => t.id).join(' ');

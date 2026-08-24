@@ -1,0 +1,84 @@
+---
+import type { ImageMetadata } from 'astro';
+import { Image } from 'astro:assets';
+import Base from './Base.astro';
+import { formatDate, machineDate } from '../lib/format';
+
+interface Props {
+  title: string;
+  intro: string;
+  publishDate: Date;
+  updatedDate?: Date;
+  cover?: ImageMetadata;
+  coverAlt?: string;
+  tags?: { id: string; data: { name: string } }[];
+}
+
+const { title, intro, publishDate, updatedDate, cover, coverAlt, tags = [] } =
+  Astro.props;
+
+/**
+ * Vectors scale for free, so asking for multiple widths just emits identical
+ * copies of the same file under different hashes. Only raster covers get a
+ * srcset.
+ */
+const isVector = cover?.format === 'svg';
+
+/**
+ * PLACEHOLDER — revisit once the responsive layout exists.
+ * See docs/content-architecture.md §5 "Revisit: widths and sizes".
+ *
+ * These numbers predate any design. `sizes` must match the width the cover is
+ * actually drawn at, and the ceiling of `coverWidths` should be roughly that
+ * width x2 to serve retina screens sharply. Both fail silently when wrong:
+ * too-small `sizes` renders soft, too-large wastes bandwidth on every visit.
+ */
+const coverWidths = isVector ? undefined : [480, 800, 1200];
+const coverSizes = isVector ? undefined : '(min-width: 60rem) 60rem, 100vw';
+---
+
+<Base title={title} description={intro}>
+  <article>
+    <header>
+      <h1>{title}</h1>
+      <p>{intro}</p>
+
+      <p>
+        <time datetime={machineDate(publishDate)}>{formatDate(publishDate)}</time>
+        {
+          updatedDate && (
+            <>
+              {' · updated '}
+              <time datetime={machineDate(updatedDate)}>{formatDate(updatedDate)}</time>
+            </>
+          )
+        }
+      </p>
+
+      {
+        tags.length > 0 && (
+          <ul role="list" aria-label="Tags">
+            {tags.map((tag) => (
+              <li>{tag.data.name}</li>
+            ))}
+          </ul>
+        )
+      }
+
+      {
+        cover && (
+          <Image
+            src={cover}
+            alt={coverAlt ?? ''}
+            widths={coverWidths}
+            sizes={coverSizes}
+          />
+        )
+      }
+    </header>
+
+    <div class="prose">
+      <slot />
+    </div>
+  </article>
+</Base>
