@@ -147,6 +147,69 @@ export async function getWritingSeriesIndex(): Promise<Map<string, SeriesPositio
   return index;
 }
 
+export type NoteEntry = CollectionEntry<'notes'>;
+
+/**
+ * The same class of invariant as assertRenderable(), for the same reason: a
+ * schema never sees the body.
+ *
+ * Notes get no externalUrl escape hatch, though. A note with a link and no
+ * words is a bookmark, and there is no page for it to be empty on — it would
+ * just render as a blank item in the middle of the feed.
+ */
+function assertNotesHaveBody(entries: NoteEntry[]): void {
+  const empty = entries.filter((entry) => !entry.body?.trim());
+
+  if (empty.length > 0) {
+    const list = empty.map((e) => `  - ${e.id}`).join('\n');
+    throw new Error(
+      `Notes with an empty body:\n${list}\n` +
+        'A note is its body — add text, or delete the file.',
+    );
+  }
+}
+
+/** All notes, newest first. Drafts excluded in production builds. */
+export async function getNotes(): Promise<NoteEntry[]> {
+  const entries = (await getCollection('notes')).filter(isPublished);
+  assertNotesHaveBody(entries);
+  return entries.sort(byNewest);
+}
+
+/**
+ * The normalised shape the Notes/Stash stream sorts and lays out with — see
+ * docs/content-architecture.md §4.2. The whole `entry` is kept alongside the
+ * flat fields, so the component still renders the real thing; only ordering
+ * uses the normalised copy.
+ *
+ * One arm today. Phase 8 adds `| { kind: 'stash'; … }` and the discriminant is
+ * already here, so nothing about this shape has to change to admit it.
+ */
+export type FeedItem = {
+  kind: 'note';
+  date: Date;
+  tags: string[];
+  entry: NoteEntry;
+};
+
+/** Newest first over the normalised shape, where the date is flat. */
+export const byNewestItem = <T extends { date: Date }>(a: T, b: T): number =>
+  b.date.valueOf() - a.date.valueOf();
+
+/**
+ * Notes as feed items. Phase 8's getStream() concatenates this with the stash
+ * equivalent and re-sorts, which is the whole point of normalising: two
+ * collections with honestly different schemas interleave on one axis.
+ */
+export async function getNoteFeed(): Promise<FeedItem[]> {
+  return (await getNotes()).map((entry) => ({
+    kind: 'note' as const,
+    date: entry.data.publishDate,
+    tags: entry.data.tags.map((tag) => tag.id),
+    entry,
+  }));
+}
+
 export type TagEntry = CollectionEntry<'tags'>;
 
 /**

@@ -1,0 +1,30 @@
+---
+import Base from '../layouts/Base.astro';
+import FeedItem from '../components/FeedItem.astro';
+import { getNoteFeed } from '../lib/content';
+
+/*
+ * A single page, not a directory: notes are stream-only, so there is no
+ * /notes/[id] route and nothing to generate paths for. Reversible with one
+ * route file if that ever changes — see docs/content-architecture.md §3.5.
+ */
+const items = await getNoteFeed();
+---
+
+<Base title="Notes" description="Short thoughts, links worth keeping, and things half-figured-out.">
+  <h1>Notes</h1>
+
+  {
+    items.length > 0 ? (
+      <ul role="list">
+        {items.map((item) => (
+          <li>
+            <FeedItem item={item} headingLevel={2} />
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <p>Nothing published yet.</p>
+    )
+  }
+</Base>

@@ -18,3 +18,11 @@ export const machineDate = (date: Date): string => {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 };
+
+/**
+ * Display form of a URL's host, used as link text when a link has no label of
+ * its own. "smashingmagazine.com" is both tidier than the full URL and more
+ * honest than a generic "read it" — the reader can see where they're going.
+ */
+export const hostname = (url: string): string =>
+  new URL(url).hostname.replace(/^www\./, '');

@@ -1,0 +1,73 @@
+---
+import { render } from 'astro:content';
+import { resolveTags, type FeedItem } from '../lib/content';
+import { formatDate, machineDate, hostname } from '../lib/format';
+
+interface Props {
+  item: FeedItem;
+  /** See WritingPreview — keeps the outline correct under different parents. */
+  headingLevel?: 2 | 3 | 4;
+}
+
+const { item, headingLevel = 2 } = Astro.props;
+
+const Heading = `h${headingLevel}` as 'h2' | 'h3' | 'h4';
+
+/*
+ * Unlike the preview components, a feed item renders the actual body. Notes
+ * have no permalink — the feed *is* the note — so there is nowhere else for the
+ * content to live and nothing to link the title to.
+ *
+ * Phase 8 adds the stash arm. Until there is a second kind, a switch on
+ * item.kind would be one branch and a comment pretending to be a seam; the
+ * union carries the discriminant so adding that branch is additive.
+ */
+const { Content } = await render(item.entry);
+const tags = await resolveTags(item.entry);
+
+const { title, url, urlLabel } = item.entry.data;
+
+/*
+ * Most notes are untitled, so most have no heading to name the article. That
+ * leaves the date as the only identifying content, which makes for a useless
+ * entry in a screen reader's list of articles — hence the fallback label. A
+ * titled note needs no label, since the heading already provides one.
+ */
+const label = title ? undefined : `Note — ${formatDate(item.date)}`;
+---
+
+<article aria-label={label}>
+  {title && <Heading>{title}</Heading>}
+
+  <!--
+    Shares the prose styling with Post.astro rather than a component: nothing
+    caps the height or clamps the text, because nothing enforces note length
+    either (§3.5). A long note is meant to grow, not clip.
+  -->
+  <div class="prose">
+    <Content />
+  </div>
+
+  {
+    url && (
+      <p>
+        <a href={url}>{urlLabel ?? hostname(url)}</a>
+        <span class="visually-hidden"> (external link)</span>
+      </p>
+    )
+  }
+
+  <p>
+    <time datetime={machineDate(item.date)}>{formatDate(item.date)}</time>
+  </p>
+
+  {
+    tags.length > 0 && (
+      <ul role="list" aria-label="Tags">
+        {tags.map((tag) => (
+          <li>{tag.data.name}</li>
+        ))}
+      </ul>
+    )
+  }
+</article>

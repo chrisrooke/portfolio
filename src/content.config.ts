@@ -84,4 +84,29 @@ const projects = defineCollection({
       .refine(hasAltWithCover, altRequiredError),
 });
 
-export const collections = { tags, writing, projects };
+/**
+ * Microblog thoughts. Short by convention, never by validation — Zod cannot see
+ * the body, so nothing enforces brevity and the feed layout must tolerate a
+ * note that runs long. See docs/content-architecture.md §3.5.
+ *
+ * `.md`, not `.mdx`: notes need links and emphasis, not components. No cover,
+ * no intro, and `title` is optional because most notes don't want one.
+ */
+const notes = defineCollection({
+  loader: glob({ base: './src/content/notes', pattern: '**/*.md' }),
+  schema: z
+    .object({
+      ...baseFields,
+      title: z.string().optional(),
+      /** Optional link out — the "here's an article worth reading" case. */
+      url: z.url().optional(),
+      /** Link text. Falls back to the URL's host when omitted. */
+      urlLabel: z.string().optional(),
+    })
+    .refine((data) => !data.urlLabel || data.url, {
+      message: 'urlLabel is meaningless without url.',
+      path: ['urlLabel'],
+    }),
+});
+
+export const collections = { tags, writing, projects, notes };

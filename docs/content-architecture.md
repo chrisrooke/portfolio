@@ -8,7 +8,7 @@ uses the Content Layer API with **Zod 4.4.3**.
 > tutorials online still show the old form. `reference`, `defineCollection`, `getCollection`,
 > `getEntries`, and `render` all still come from `astro:content`; only `z` moved.
 
-Status: **Phases 0–6 implemented.** Phases at the bottom.
+Status: **Phases 0–7 implemented.** Phases at the bottom.
 
 ---
 
@@ -316,13 +316,29 @@ this is automatic rather than something to filter for.
 schema: z.object({
   ...baseFields,
   title: z.string().optional(),   // often untitled
-  url: z.string().url().optional(),
+  url: z.url().optional(),        // z.url(), not z.string().url() — see §2
   urlLabel: z.string().optional(),
+}).refine((data) => !data.urlLabel || data.url, {
+  message: 'urlLabel is meaningless without url.',
+  path: ['urlLabel'],
 })
 ```
 
 `.md`, not `.mdx` — notes need links and emphasis, not components. No cover image, per the
 requirement.
+
+The `urlLabel` refine mirrors the `externalSource`/`externalUrl` pairing on `writing`: an
+optional field that decorates another optional field is silently dead if its partner is
+missing, and silently dead frontmatter is worth a build error.
+
+**A note must have a body.** `getNotes()` asserts it, the same class of check as
+`assertRenderable()` and for the same reason — a schema never sees the body. Notes get no
+`externalUrl`-style escape hatch though: a link with no words is a bookmark, and since there
+is no permalink for it to be empty on, it would render as a blank item mid-feed.
+
+**Filenames are `YYYY-MM-DD-slug.md`.** Most notes are untitled, so there is no title to
+derive a filename from, and the id never appears in a URL — it only shows up in build errors.
+A date prefix keeps the directory in reading order and makes those errors locatable.
 
 **On the character limit: convention only — decided.** Zod can't see the body, so `.max()`
 can't apply to it, and no build-time check will be added. Notes stay real Markdown (inline
@@ -414,11 +430,7 @@ export type FeedItem =
   | { kind: 'stash'; date: Date; tags: string[]; entry: CollectionEntry<'stash'> };
 
 export async function getStream(): Promise<FeedItem[]> {
-  const [notes, stash] = await Promise.all([getNotes(), getStash()]);
-  return [
-    ...notes.map((entry) => ({ kind: 'note',  date: entry.data.publishDate, … })),
-    ...stash.map((entry) => ({ kind: 'stash', date: entry.data.publishDate, … })),
-  ].sort(byNewest);
+  return [...await getNoteFeed(), ...await getStashFeed()].sort(byNewestItem);
 }
 ```
 
@@ -426,6 +438,20 @@ A discriminated union, so a `<FeedItem>` component switches on `kind` and TypeSc
 `entry` to the right type — full autocomplete on `medium` inside the stash branch, and a
 compile error if you reference `medium` in the note branch. The two collections keep their
 own honest schemas; only the *view* is unified.
+
+**As built in Phase 7**, with one arm and no `getStream()` yet:
+
+- Each collection owns its own `get…Feed()` that normalises its entries. `getStream()` is
+  then concatenate-and-sort and nothing else, which is the point of normalising.
+- **`byNewestItem`, not `byNewest`.** The normalised shape has a flat `date`; `byNewest`
+  reads `data.publishDate`. Two comparators because there are genuinely two shapes — an
+  earlier draft of this document called `byNewest` here and it would not have compiled.
+- **`FeedItem.astro` renders the body, not a preview of it.** No permalink means the feed
+  *is* the note: there is nowhere else for the content to live, nothing to link a title to,
+  and `render()` is called per item inside the component rather than by the page.
+- The component does **not** yet switch on `kind`. With one arm that would be a branch
+  pretending to be a seam. The discriminant is on the type, so Phase 8 adds a branch rather
+  than reshaping anything.
 
 ### 4.4 Homepage composition
 
@@ -566,6 +592,21 @@ against a card grid that does not exist yet — and since Projects lead the home
 covers are the heaviest assets on the site, so that pair matters more than `Post.astro`'s.
 **Two placeholders to revisit now, not one.**
 
+### ⚠️ Revisit: the tag filter script is trapped in one page
+
+Phase 5 put the client-side filtering script inline at the bottom of
+`/writing/index.astro`, which was right at the time — one page needed it.
+
+`/notes` is the first page that plausibly wants the same behaviour, and Phase 7 deliberately
+shipped without it rather than paste ~90 lines of DOM code into a second file. The moment a
+second page needs filtering, the script moves to `src/scripts/tag-filter.ts` and both pages
+import it. That refactor is cheap while there is exactly one copy and gets steadily less
+cheap after that, so it should happen *with* the second consumer, not after the third.
+
+The markup contract the script depends on is already implicit and worth writing down when it
+moves: a `[data-tag-filter]` root, a `[data-filterable-list]` containing `li[data-tags]`, and
+an optional `[data-filter-status]` live region.
+
 ---
 
 ## 6. Implementation phases
@@ -581,7 +622,7 @@ Small and independently verifiable, so each one can be understood before the nex
 | **4** | ✅ `WritingPreview.astro`; `/writing` index; homepage Writing section | Done — both kinds preview identically, link differently |
 | **5** | ✅ `TagFilter.astro` + client-side filtering on `/writing` | Done — multi-select OR, URL-synced, no-JS safe |
 | **6** | ✅ `projects` collection, `[...id]` route, `ProjectPreview`, `SeriesList`, derived reverse lookup, homepage Projects section | Done — series renders in array order, posts show "Part n of m", both guards fire |
-| **7** | `notes` collection + `/notes` feed + `FeedItem` | Notes feed renders |
+| **7** | ✅ `notes` collection, `/notes` feed, `FeedItem`, `getNoteFeed()` normalisation | Done — dev 6 / prod 5, both guards fire, long note renders unclipped |
 | **8** | `stash` collection + `/stash`; `getStream()` combined feed | Notes and Stash interleave correctly by date |
 | **9** | Homepage assembled: projects, writing, stream slice | All three sections live in order |
 | **10** | `/about`, `/colophon`, `/404`; RSS, sitemap, OG images | — |
@@ -614,3 +655,6 @@ are already reflected in the sections above.
 | Series list on a project page | **A `<nav>` landmark after the body**, not part of the prose — it is onward navigation about the project, not more case study. |
 | Layout for case studies | **`Post.astro` shared**, with optional `meta` and `related` slots. |
 | Preview components | **Three separate** (`WritingPreview`, `ProjectPreview`, `FeedItem`), sharing styles not structure. |
+| Link text for a note's `url` | **`urlLabel`, falling back to the host.** "docs.astro.build" is tidier than the raw URL and more honest than a generic "read it" — the reader sees where they're going. |
+| Naming an untitled note | **`aria-label="Note — {date}"` on the `<article>`.** Untitled is the common case, which otherwise leaves an unnamed article in a screen reader's element list. Titled notes get no label; the heading already names them. |
+| Tag filtering on `/notes` | **Deferred, not rejected.** See the note below — the filter script has to come out of `/writing/index.astro` first. |
