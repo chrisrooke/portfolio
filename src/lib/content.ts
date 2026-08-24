@@ -69,6 +69,84 @@ export async function getInternalWriting(): Promise<WritingEntry[]> {
   return (await getWriting()).filter((entry) => !isExternal(entry));
 }
 
+export type ProjectEntry = CollectionEntry<'projects'>;
+
+export const projectHref = (entry: ProjectEntry): string => `/projects/${entry.id}`;
+
+/** All projects, newest first. Drafts excluded in production builds. */
+export async function getProjects(): Promise<ProjectEntry[]> {
+  return (await getCollection('projects')).filter(isPublished).sort(byNewest);
+}
+
+/**
+ * A project's writing series, in the order the project declares — not date
+ * order. Reading order is authorial: a part can be published late or backdated
+ * without moving in the series.
+ *
+ * Drafts are dropped here too, which means part numbering is always over the
+ * posts a reader can actually reach. A draft sitting at position 2 of 4 would
+ * otherwise produce a visible "Part 3 of 4" with no part 2 to link to.
+ */
+export async function getProjectSeries(project: ProjectEntry): Promise<WritingEntry[]> {
+  const refs = project.data.relatedWriting;
+  if (refs.length === 0) return [];
+
+  const entries = await getEntries(refs);
+
+  /*
+   * getEntries() returns undefined for a reference that doesn't resolve. Astro
+   * logs a clear [content] error at sync but does not halt, so the failure
+   * would otherwise surface much later as a TypeError on `.data` inside a
+   * bundled chunk — see docs/content-architecture.md §2. Naming it here keeps
+   * the first error the useful one.
+   */
+  const missing = refs.filter((_, i) => !entries[i]).map((ref) => ref.id);
+  if (missing.length > 0) {
+    throw new Error(
+      `Project "${project.id}" references writing entries that do not exist:\n` +
+        missing.map((id) => `  - ${id}`).join('\n'),
+    );
+  }
+
+  return entries.filter(isPublished);
+}
+
+/** Where a post sits in a project's series. `total` of 1 means "related", not "part 1 of 1". */
+export type SeriesPosition = {
+  project: ProjectEntry;
+  part: number;
+  total: number;
+};
+
+/**
+ * The reverse of relatedWriting: writing id → its place in a project's series.
+ *
+ * Derived rather than stored, so a post declares nothing and cannot fall out of
+ * sync with the project that lists it. Built once per page that needs it.
+ */
+export async function getWritingSeriesIndex(): Promise<Map<string, SeriesPosition>> {
+  const projects = await getProjects();
+  const series = await Promise.all(projects.map(getProjectSeries));
+  const index = new Map<string, SeriesPosition>();
+
+  projects.forEach((project, i) => {
+    const posts = series[i];
+    posts.forEach((post, position) => {
+      const existing = index.get(post.id);
+      if (existing) {
+        throw new Error(
+          `Writing entry "${post.id}" is listed by two projects ` +
+            `("${existing.project.id}" and "${project.id}"). ` +
+            'A post can belong to one series, or "part n of m" is ambiguous.',
+        );
+      }
+      index.set(post.id, { project, part: position + 1, total: posts.length });
+    });
+  });
+
+  return index;
+}
+
 export type TagEntry = CollectionEntry<'tags'>;
 
 /**

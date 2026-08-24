@@ -1,0 +1,71 @@
+---
+import { writingHref, isExternal, type WritingEntry } from '../lib/content';
+import { formatDate, machineDate } from '../lib/format';
+
+interface Props {
+  posts: WritingEntry[];
+  headingLevel?: 2 | 3 | 4;
+}
+
+const { posts, headingLevel = 2 } = Astro.props;
+
+const Heading = `h${headingLevel}` as 'h2' | 'h3' | 'h4';
+
+/*
+ * One related post is not "part 1 of 1" — it's just a link. Same data, same
+ * component, different copy; the branch is presentational only.
+ */
+const isSeries = posts.length > 1;
+const label = isSeries ? 'The series' : 'Written about';
+---
+
+{
+  posts.length > 0 && (
+    /*
+     * A <nav> landmark rather than part of the prose. This is onward navigation
+     * about the project, not more of the case study — so it sits outside the
+     * body content and gets its own accessible name, letting a screen reader
+     * user jump straight to it or skip past it.
+     */
+    <nav aria-label={label}>
+      <Heading>{label}</Heading>
+
+      {isSeries ? (
+        /*
+         * <ol> because the order is meaningful and authorial — it is the order
+         * the project declares, not publish order.
+         */
+        <ol>
+          {posts.map((post) => (
+            <li>
+              <a href={writingHref(post)}>{post.data.title}</a>
+              {isExternal(post) && (
+                <span>
+                  {post.data.externalSource ? ` · on ${post.data.externalSource}` : ' · published elsewhere'}
+                  <span class="visually-hidden"> (external link)</span>
+                </span>
+              )}
+              <p>{post.data.intro}</p>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        posts.map((post) => (
+          <p>
+            <a href={writingHref(post)}>{post.data.title}</a>
+            {isExternal(post) && (
+              <span>
+                {post.data.externalSource ? ` · on ${post.data.externalSource}` : ' · published elsewhere'}
+                <span class="visually-hidden"> (external link)</span>
+              </span>
+            )}
+            {' · '}
+            <time datetime={machineDate(post.data.publishDate)}>
+              {formatDate(post.data.publishDate)}
+            </time>
+          </p>
+        ))
+      )}
+    </nav>
+  )
+}

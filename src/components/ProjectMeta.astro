@@ -1,0 +1,77 @@
+---
+interface Props {
+  role?: string;
+  year?: number;
+  tech?: string[];
+  url?: string;
+  repoUrl?: string;
+}
+
+const { role, year, tech = [], url, repoUrl } = Astro.props;
+
+/*
+ * `year` is the year the work happened, which is not publishDate — a case
+ * study written up long after the fact is common, and conflating the two makes
+ * old work look new.
+ */
+const hasFacts = Boolean(role || year || tech.length > 0);
+const hasLinks = Boolean(url || repoUrl);
+---
+
+{
+  (hasFacts || hasLinks) && (
+    <div>
+      {/*
+        A <dl> because these are genuinely name/value pairs — the labels are
+        data, not decoration, and a screen reader announces the pairing.
+      */}
+      {hasFacts && (
+        <dl>
+          {role && (
+            <>
+              <dt>Role</dt>
+              <dd>{role}</dd>
+            </>
+          )}
+          {year && (
+            <>
+              <dt>Year</dt>
+              <dd>{year}</dd>
+            </>
+          )}
+          {tech.length > 0 && (
+            <>
+              <dt>Built with</dt>
+              <dd>
+                <ul role="list">
+                  {tech.map((item) => (
+                    <li>{item}</li>
+                  ))}
+                </ul>
+              </dd>
+            </>
+          )}
+        </dl>
+      )}
+
+      {hasLinks && (
+        <ul role="list">
+          {url && (
+            <li>
+              <a href={url}>
+                Visit the project<span class="visually-hidden"> (external link)</span>
+              </a>
+            </li>
+          )}
+          {repoUrl && (
+            <li>
+              <a href={repoUrl}>
+                Source code<span class="visually-hidden"> (external link)</span>
+              </a>
+            </li>
+          )}
+        </ul>
+      )}
+    </div>
+  )
+}

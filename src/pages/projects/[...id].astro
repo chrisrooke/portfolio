@@ -1,0 +1,58 @@
+---
+import { render } from 'astro:content';
+import Post from '../../layouts/Post.astro';
+import ProjectMeta from '../../components/ProjectMeta.astro';
+import SeriesList from '../../components/SeriesList.astro';
+import {
+  getProjects,
+  getProjectSeries,
+  resolveTags,
+  type ProjectEntry,
+} from '../../lib/content';
+
+export async function getStaticPaths() {
+  const projects = await getProjects();
+  return projects.map((entry) => ({
+    params: { id: entry.id },
+    props: { entry },
+  }));
+}
+
+interface Props {
+  entry: ProjectEntry;
+}
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+const tags = await resolveTags(entry);
+
+/*
+ * One related post or five, this is the same call and the same component — the
+ * project declares an ordered array either way, and SeriesList decides whether
+ * that reads as "Written about" or "The series".
+ */
+const series = await getProjectSeries(entry);
+---
+
+<Post
+  title={entry.data.title}
+  intro={entry.data.intro}
+  publishDate={entry.data.publishDate}
+  updatedDate={entry.data.updatedDate}
+  cover={entry.data.cover}
+  coverAlt={entry.data.coverAlt}
+  tags={tags}
+>
+  <ProjectMeta
+    slot="meta"
+    role={entry.data.role}
+    year={entry.data.year}
+    tech={entry.data.tech}
+    url={entry.data.url}
+    repoUrl={entry.data.repoUrl}
+  />
+
+  <Content />
+
+  <SeriesList slot="related" posts={series} headingLevel={2} />
+</Post>

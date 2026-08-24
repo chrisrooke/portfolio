@@ -1,0 +1,45 @@
+---
+title: Documenting a system nobody reads
+intro: >-
+  Design system documentation is read in a hurry, by someone mid-task, looking
+  for one specific thing. Almost none of it is written that way.
+publishDate: 2026-06-03
+tags:
+  - design-systems
+  - process
+---
+
+The documentation site had four hundred visits a month and a bounce rate that
+suggested most of them were accidents. The system itself was used by every team
+in the company. Both of those things were true at once, and for a while I took
+it personally.
+
+## Nobody is reading, they are checking
+
+The mental model behind most system docs is a manual: start at the beginning,
+understand the philosophy, proceed to the components. The actual usage pattern
+is a search box and a back button.
+
+Someone is halfway through building a form. They need to know whether the input
+component handles its own label. They will spend about twenty seconds finding
+out, and if they do not find out, they will guess — and their guess becomes a
+bug report against you three sprints later.
+
+## What earned its place
+
+Three things, in the end.
+
+A **copyable code example above the fold** on every component page, showing the
+common case rather than the exhaustive one. Not the API table first — the API
+table is for the second visit.
+
+**Do and don't pairs**, side by side, with actual screenshots. These were the
+only prose anyone reliably read, presumably because they can be understood
+without reading.
+
+An **honest "when not to use this"** section. It bought more trust than
+anything else, because it made the rest of the page believable. A page that only
+advocates for its component reads like marketing, and people skim marketing.
+
+Everything else — the principles page, the contribution guide, the
+lovingly-written philosophy — could have been a paragraph in the README.

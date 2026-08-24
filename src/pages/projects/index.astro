@@ -1,0 +1,28 @@
+---
+import Base from '../../layouts/Base.astro';
+import ProjectPreview from '../../components/ProjectPreview.astro';
+import { getProjects } from '../../lib/content';
+
+const projects = await getProjects();
+---
+
+<Base
+  title="Projects"
+  description="Selected work — design systems, product build, and the write-ups that go with them."
+>
+  <h1>Projects</h1>
+
+  {
+    projects.length > 0 ? (
+      <ul role="list">
+        {projects.map((entry) => (
+          <li>
+            <ProjectPreview entry={entry} headingLevel={2} />
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <p>Nothing published yet.</p>
+    )
+  }
+</Base>

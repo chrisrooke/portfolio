@@ -1,0 +1,42 @@
+---
+title: Tokens before components
+intro: >-
+  Starting a design system with a colour palette and a type scale, rather than
+  with the button everyone is waiting for.
+publishDate: 2026-05-14
+tags:
+  - design-systems
+  - process
+---
+
+Every design system I have worked on was asked to produce a button in its first
+week, and every one of them was worse for having agreed.
+
+A button is a conclusion. It assumes a palette, a type scale, a spacing rhythm,
+a focus treatment, a set of states, and a decision about how much of that is
+allowed to vary. Ship the button first and all of those decisions get made
+implicitly, in one file, by whoever happened to be assigned the ticket.
+
+## What a token actually buys you
+
+The value is not the variable. Nobody has ever been meaningfully helped by
+`--color-blue-500` existing. The value is that a token is a *named decision*,
+and named decisions can be argued with.
+
+When the palette is a list of hex codes in a Figma file, "can we make this
+darker" is a conversation about one screen. When it is a token, the same
+question is a conversation about every screen at once — which is slower, more
+annoying, and correct.
+
+## The order that worked
+
+Colour, type, space, then radius and shadow. Roughly a fortnight, mostly spent
+deleting things.
+
+The deleting is the part worth budgeting for. A palette lifted from an existing
+product will have forty greys in it, of which four are load-bearing and the rest
+are the residue of people matching a screenshot. Naming them all preserves the
+mess in a more official format.
+
+Only once those were settled did the first component get built — and it took an
+afternoon, because by then almost nothing about it was still an open question.

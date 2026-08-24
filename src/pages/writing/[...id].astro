@@ -1,7 +1,13 @@
 ---
 import { render } from 'astro:content';
 import Post from '../../layouts/Post.astro';
-import { getInternalWriting, resolveTags, type WritingEntry } from '../../lib/content';
+import {
+  getInternalWriting,
+  getWritingSeriesIndex,
+  projectHref,
+  resolveTags,
+  type WritingEntry,
+} from '../../lib/content';
 
 /**
  * Only internal posts get a page. External link-posts live in the same
@@ -23,6 +29,13 @@ interface Props {
 const { entry } = Astro.props;
 const { Content } = await render(entry);
 const tags = await resolveTags(entry);
+
+/*
+ * Derived, not stored: the post declares no series and no part number. Its
+ * position comes from the ordered array on whichever project lists it, so the
+ * two can never disagree. See docs/content-architecture.md §4.3.
+ */
+const series = (await getWritingSeriesIndex()).get(entry.id);
 ---
 
 <Post
@@ -34,5 +47,14 @@ const tags = await resolveTags(entry);
   coverAlt={entry.data.coverAlt}
   tags={tags}
 >
+  {
+    series && (
+      <p slot="meta">
+        {series.total > 1 ? `Part ${series.part} of ${series.total} in ` : 'Written for '}
+        <a href={projectHref(series.project)}>{series.project.data.title}</a>
+      </p>
+    )
+  }
+
   <Content />
 </Post>

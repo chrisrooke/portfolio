@@ -1,0 +1,39 @@
+---
+title: The component API is the product
+intro: >-
+  The props you expose are the only part of a component anyone outside your team
+  will ever interact with — and the only part you cannot quietly change later.
+publishDate: 2026-07-08
+tags:
+  - design-systems
+---
+
+You can rewrite a component's internals on a Tuesday afternoon and nobody will
+notice. Rename one prop and you will hear about it for a year.
+
+This asymmetry is the whole job. The implementation is private and cheap to
+change; the API is public and expensive. Yet most of the review effort in a
+design system goes into the implementation, because that is the part that looks
+like engineering.
+
+## Variants are a vocabulary, not a switch
+
+The instinct with a `variant` prop is to make it permissive — accept a string,
+add a case for each new design. Six months later there are eleven variants, four
+of which are used once, and the component has become a small framework nobody
+chose to adopt.
+
+A closed union of three or four variants forces the argument to happen at the
+point where it is cheap: someone asks for a fifth, and the team has to decide
+whether it is genuinely a new kind of thing or a one-off that belongs in the
+consuming app. Usually it is the latter, and usually the person asking already
+suspected that.
+
+## Escape hatches are fine, but name them
+
+Every system needs a way out — a `className`, a slot, something. The mistake is
+pretending otherwise, which just moves the escape hatch somewhere less visible,
+like a global stylesheet override targeting an internal class name.
+
+Give it a name, document what it voids, and it stops being a workaround and
+starts being a supported case with known limits.

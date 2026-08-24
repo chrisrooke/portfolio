@@ -1,0 +1,60 @@
+---
+title: Lattice
+intro: >-
+  A design system for a product team of forty — tokens, a small component
+  library, and the documentation that kept them honest.
+publishDate: 2026-07-10
+cover: ./cover.svg
+coverAlt: >-
+  An abstract lattice of overlapping squares on a dark ground, connected by thin
+  rules.
+role: Design systems lead
+year: 2026
+url: https://example.com/lattice
+repoUrl: https://github.com/example/lattice
+tech:
+  - Astro
+  - TypeScript
+  - Web Components
+  - Style Dictionary
+tags:
+  - design-systems
+  - accessibility
+# Array order is reading order, and deliberately does NOT match publish date
+# order here — "Documenting" went out a month before "The component API".
+# The series list renders 1, 2, 3 as listed; /writing sorts the same three
+# posts by date. That difference is the point.
+relatedWriting:
+  - tokens-before-components
+  - the-component-api-is-the-product
+  - documenting-a-system-nobody-reads
+---
+
+Lattice began as a colour palette in a spreadsheet and ended as the only
+sanctioned way to build a screen at the company. The interesting part was not
+the components — it was the eighteen months of negotiation that made the
+components possible.
+
+## The problem
+
+Four product teams, three of which had forked the same button component and
+diverged. Nothing was broken, exactly. But every new hire spent their first
+fortnight learning which of the four codebases they were allowed to copy from,
+and accessibility fixes landed in one place and nowhere else.
+
+## What I did
+
+I led the system from the initial audit through to adoption across all four
+teams. In practice that meant roughly a third design, a third engineering, and a
+third convincing people — the last of which turned out to be the constraint.
+
+The technical shape was deliberately unambitious: tokens generated from a single
+source, a component library small enough that one person could hold it in their
+head, and documentation built around the twenty-second lookup rather than the
+guided tour.
+
+## Where it got to
+
+Eleven components, one palette, and a contribution process that four teams
+actually used. The button forks were retired in the third quarter, which was six
+months later than planned and about a year earlier than I had privately feared.

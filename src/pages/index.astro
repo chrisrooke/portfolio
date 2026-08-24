@@ -1,19 +1,44 @@
 ---
 import Base from '../layouts/Base.astro';
 import WritingPreview from '../components/WritingPreview.astro';
-import { getWriting } from '../lib/content';
+import ProjectPreview from '../components/ProjectPreview.astro';
+import { getWriting, getProjects } from '../lib/content';
 
 /**
  * Partial homepage. Final composition is Projects, then Writing, then a slice
- * of the Notes/Stash stream — see docs/content-architecture.md §4.4. Projects
- * arrive in Phase 6 and the stream in Phase 8, so only Writing is live here.
+ * of the Notes/Stash stream — see docs/content-architecture.md §4.4. The
+ * stream arrives in Phase 8; the first two sections are live.
+ *
+ * Projects lead because this is a portfolio: the work comes before the writing
+ * about the work.
  */
 const RECENT_COUNT = 3;
-const recentWriting = (await getWriting()).slice(0, RECENT_COUNT);
+const PROJECT_COUNT = 2;
+
+const [recentWriting, recentProjects] = await Promise.all([
+  getWriting().then((posts) => posts.slice(0, RECENT_COUNT)),
+  getProjects().then((projects) => projects.slice(0, PROJECT_COUNT)),
+]);
 ---
 
 <Base title="Chris Rooke" description="Portfolio, writing, and notes.">
   <h1>Chris Rooke</h1>
+
+  <section aria-labelledby="recent-projects">
+    <h2 id="recent-projects">Projects</h2>
+
+    <ul role="list">
+      {
+        recentProjects.map((entry) => (
+          <li>
+            <ProjectPreview entry={entry} headingLevel={3} />
+          </li>
+        ))
+      }
+    </ul>
+
+    <p><a href="/projects">All projects</a></p>
+  </section>
 
   <section aria-labelledby="recent-writing">
     <h2 id="recent-writing">Writing</h2>

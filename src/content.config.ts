@@ -1,4 +1,4 @@
-import { defineCollection } from 'astro:content';
+import { defineCollection, reference } from 'astro:content';
 import { glob, file } from 'astro/loaders';
 import { z } from 'astro/zod';
 import {
@@ -50,4 +50,38 @@ const writing = defineCollection({
       }),
 });
 
-export const collections = { tags, writing };
+/**
+ * Case studies. The body is the write-up; the frontmatter carries the facts a
+ * reader scans for before reading anything (role, year, stack, links out).
+ */
+const projects = defineCollection({
+  loader: glob({ base: './src/content/projects', pattern: '**/*.mdx' }),
+  schema: ({ image }) =>
+    z
+      .object({
+        ...baseFields,
+        ...titledFields,
+        ...coverFields(image),
+        /** The live project. */
+        url: z.url().optional(),
+        repoUrl: z.url().optional(),
+        role: z.string().optional(),
+        /** Year the work happened — not the date this case study was posted. */
+        year: z.number().int().optional(),
+        tech: z.array(z.string()).default([]),
+        /**
+         * The single source of truth for the project ↔ writing relationship,
+         * and — because it is an array — for the *order* of a series.
+         *
+         * Reading order is authorial, not chronological: a part can be
+         * published late, or backdated, without changing where it sits in the
+         * series. Storing the reverse direction on each post instead would
+         * need a hand-maintained part number with nothing validating it.
+         * See docs/content-architecture.md §3.4.
+         */
+        relatedWriting: z.array(reference('writing')).default([]),
+      })
+      .refine(hasAltWithCover, altRequiredError),
+});
+
+export const collections = { tags, writing, projects };

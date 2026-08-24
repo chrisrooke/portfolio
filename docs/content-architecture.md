@@ -8,7 +8,7 @@ uses the Content Layer API with **Zod 4.4.3**.
 > tutorials online still show the old form. `reference`, `defineCollection`, `getCollection`,
 > `getEntries`, and `render` all still come from `astro:content`; only `z` moved.
 
-Status: **plan, not yet implemented.** Phases at the bottom.
+Status: **Phases 0–6 implemented.** Phases at the bottom.
 
 ---
 
@@ -242,8 +242,8 @@ schema: ({ image }) => z.object({
   ...baseFields,
   ...titledFields,
   ...coverFields(image),
-  url: z.string().url().optional(),        // the live project
-  repoUrl: z.string().url().optional(),
+  url: z.url().optional(),                 // the live project
+  repoUrl: z.url().optional(),
   role: z.string().optional(),
   year: z.number().int().optional(),
   tech: z.array(z.string()).default([]),
@@ -264,6 +264,42 @@ Writing post — looks symmetrical but is worse:
 
 The reverse lookup ("this post belongs to project X, part 3 of 5") is **derived** in the
 view layer by scanning projects once. One source of truth, both directions available.
+
+### Why not a `series` field on each post?
+
+Considered in Phase 6 and rejected. The idea is appealing — give posts a shared
+`series: "lattice"` key and let them auto-associate — but it does not avoid the ordering
+problem, it relocates it. Posts sharing a key still need an order, and publish-date order is
+the wrong one for a tutorial: a part can be finished late or backdated without moving in the
+reading order. So a `seriesPart: 3` field follows, and now nothing validates that two posts
+don't both claim part 3, or that part 2 exists at all.
+
+The array already delivers the auto-association that motivated the idea — **posts declare
+nothing**, and `getWritingSeriesIndex()` derives position — with order for free and every
+entry validated by `reference()`. Verified in Phase 6: the three Lattice posts render as
+parts 1–3 in the order the project lists them, while `/writing` shows the same three in a
+different order by date.
+
+The one thing it cannot express is a series with **no project attached**. If that's ever
+needed, it's additive: a `series` collection with the same ordered-array shape, and
+`getWritingSeriesIndex()` merging both sources. No change to any post.
+
+### Drafts inside a series
+
+`getProjectSeries()` filters drafts, so part numbering is always over the posts a reader can
+actually reach. A draft at position 2 of 4 would otherwise render a visible "Part 3 of 4"
+linking to a part 2 that doesn't exist in production. Verified: drafting a mid-series post
+renumbers the survivors to 1 of 2 and 2 of 2.
+
+### Two build-time guards (Phase 6)
+
+Both throw with the offending ids named, in the spirit of `assertRenderable()`:
+
+- **A post listed by two projects** — "part n of *which*?" is ambiguous, so it's an error
+  rather than a silent last-writer-wins.
+- **A `relatedWriting` reference that doesn't resolve** — `getEntries()` returns `undefined`
+  for these and Astro's own error scrolls away (§2), so `getProjectSeries()` names the
+  project and the missing ids itself.
 
 Resolving the array uses `getEntries()`:
 
@@ -417,6 +453,11 @@ Two consequences worth noting:
   normalisation; Writing and Projects render through their own preview components. If they
   ever do need to interleave, adding an arm is additive and TypeScript will flag every
   `switch` that needs a new branch.
+- **One long-form layout, two optional slots.** `Post.astro` is shared by writing posts and
+  project case studies. Rather than a fourth prop cluster or a near-duplicate `Project.astro`,
+  it exposes `meta` (in the header — project facts and links out, or a post's "part n of m"
+  line) and `related` (after the body). Both render nothing when unfilled, so a plain writing
+  post is unaffected. Preview *components* stay separate; the layout is where sharing pays.
 - **Three preview components, not one generic one.** `WritingPreview`, `ProjectPreview`, and
   `FeedItem` are separate. A single configurable preview that handles four content types via
   props tends to accumulate conditionals until it's harder to read than the three components
@@ -431,6 +472,10 @@ export async function getWritingSeriesIndex() { … }
 ```
 
 Built once, consumed by the Writing post page to render "Part 3 of 5 in *Building X*".
+
+`total === 1` means *related*, not "part 1 of 1" — the post page renders "Written for
+*Project*" with no numbering, and `SeriesList` renders a single link rather than a
+one-item `<ol>`. Same data, one presentational branch.
 
 ---
 
@@ -448,8 +493,13 @@ src/
     stash/*.md
   lib/
     content.ts               # the view layer
+    format.ts                # date formatting
+    images.ts                # cover <Image> props + the vector guard
   components/
     WritingPreview.astro
+    ProjectPreview.astro
+    ProjectMeta.astro
+    SeriesList.astro
     FeedItem.astro
     TagFilter.astro
   layouts/
@@ -480,10 +530,11 @@ are copied verbatim and get none of that.
 
 > **Don't give an SVG cover a `widths` array.** Discovered in Phase 3: `<Image widths={[480,
 > 800, 1200]}>` on a vector emits three byte-identical copies under different hashes and a
-> `srcset` that can never do anything, since vectors scale for free. `Post.astro` guards on
-> `cover.format === 'svg'` and drops both `widths` and `sizes` for vectors. This mattered only
+> `srcset` that can never do anything, since vectors scale for free. This mattered only
 > because the sample cover is an SVG — real photographic covers want the full srcset — but the
-> guard is correct to keep either way.
+> guard is correct to keep either way. As of Phase 6 it lives in `lib/images.ts` as
+> `coverImageProps(cover, widths, sizes)`, spread into `<Image>`, so it isn't re-derived in
+> every component with a cover.
 
 ### ⚠️ Revisit: `widths` and `sizes` are placeholders
 
@@ -509,8 +560,11 @@ Why it matters more than it looks:
   (`densities?: never`), so this is an either/or per image, decided by whether the display
   size is fluid or fixed.
 
-Applies to every `<Image>` added from here on, not just `Post.astro` — the preview components
-in Phases 4 and 6 will each need their own `sizes` matching their own card widths.
+Applies to every `<Image>` added from here on, not just `Post.astro`. `ProjectPreview.astro`
+now carries a second set of guesses (`[400, 800, 1200]`, `(min-width: 60rem) 30rem, 100vw`)
+against a card grid that does not exist yet — and since Projects lead the homepage, those
+covers are the heaviest assets on the site, so that pair matters more than `Post.astro`'s.
+**Two placeholders to revisit now, not one.**
 
 ---
 
@@ -526,7 +580,7 @@ Small and independently verifiable, so each one can be understood before the nex
 | **3** | ✅ `/writing/[...id]` + `Post.astro` + `lib/format.ts` + `resolveTags()` | Done — internal 200, external 404 by design |
 | **4** | ✅ `WritingPreview.astro`; `/writing` index; homepage Writing section | Done — both kinds preview identically, link differently |
 | **5** | ✅ `TagFilter.astro` + client-side filtering on `/writing` | Done — multi-select OR, URL-synced, no-JS safe |
-| **6** | `projects` collection, `[...id]` route, `ProjectPreview`, series list, derived reverse lookup | Project page lists its series; posts show "Part n of m" |
+| **6** | ✅ `projects` collection, `[...id]` route, `ProjectPreview`, `SeriesList`, derived reverse lookup, homepage Projects section | Done — series renders in array order, posts show "Part n of m", both guards fire |
 | **7** | `notes` collection + `/notes` feed + `FeedItem` | Notes feed renders |
 | **8** | `stash` collection + `/stash`; `getStream()` combined feed | Notes and Stash interleave correctly by date |
 | **9** | Homepage assembled: projects, writing, stream slice | All three sections live in order |
@@ -556,4 +610,7 @@ are already reflected in the sections above.
 | External Writing posts | **Same collection** as internal, distinguished by `externalUrl`. |
 | Tag vocabulary | **One shared `tags` collection**; no tag pages; filters derive options from tags in use. |
 | Project ↔ Writing link | **Ordered array on the Project only**; reverse lookup derived. |
+| A `series` field on posts | **No.** It relocates the ordering problem rather than solving it, and the array already gives auto-association. Project-less series are additive later. |
+| Series list on a project page | **A `<nav>` landmark after the body**, not part of the prose — it is onward navigation about the project, not more case study. |
+| Layout for case studies | **`Post.astro` shared**, with optional `meta` and `related` slots. |
 | Preview components | **Three separate** (`WritingPreview`, `ProjectPreview`, `FeedItem`), sharing styles not structure. |

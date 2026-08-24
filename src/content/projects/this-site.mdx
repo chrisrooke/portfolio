@@ -1,0 +1,42 @@
+---
+title: This site
+intro: >-
+  A portfolio rebuilt from an empty directory, with a rule that nothing goes in
+  until I can explain why it is there.
+publishDate: 2026-08-23
+role: Design and build
+year: 2026
+repoUrl: https://github.com/chrisrooke/portfolio
+tech:
+  - Astro
+  - TypeScript
+  - MDX
+tags:
+  - astro
+  - process
+# A single related post — the same component renders this without part numbers.
+relatedWriting:
+  - starting-again
+---
+
+The previous version of this site was a template with my name in it. It worked,
+it looked reasonable, and I could not have told you why any single decision in
+it had been made.
+
+## The rule
+
+An empty directory, and nothing added until I could say what it was for. That
+turned out to be a much slower way to build a website and a much faster way to
+understand one.
+
+The content model came before the components, which felt backwards for about a
+week and then stopped feeling backwards at all. Collections are shaped like the
+things they store; a thin view layer handles drafts, sorting, and the combined
+feeds. Pages never touch the content API directly, which means the draft filter
+exists in exactly one place and cannot be forgotten on the next page I add.
+
+## Still in progress
+
+Notes, the stash, and the actual visual design. The current stylesheet is empty
+on purpose — it is easier to tell whether the markup is right when nothing is
+hiding it.

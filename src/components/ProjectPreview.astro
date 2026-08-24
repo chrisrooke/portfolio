@@ -1,0 +1,63 @@
+---
+import { Image } from 'astro:assets';
+import { projectHref, type ProjectEntry } from '../lib/content';
+import { coverImageProps } from '../lib/images';
+
+interface Props {
+  entry: ProjectEntry;
+  /** Matches WritingPreview: previews sit under different parents. Defaults to h2. */
+  headingLevel?: 2 | 3 | 4;
+}
+
+const { entry, headingLevel = 2 } = Astro.props;
+
+const { title, intro, cover, coverAlt, role, year, tech } = entry.data;
+const href = projectHref(entry);
+
+const Heading = `h${headingLevel}` as 'h2' | 'h3' | 'h4';
+
+/**
+ * PLACEHOLDER — revisit with the responsive layout, like Post.astro's.
+ * Projects lead the homepage, so these covers are the heaviest assets on the
+ * site and the numbers matter more here than anywhere else. Guessed against a
+ * two-up card grid that does not exist yet.
+ */
+const CARD_WIDTHS = [400, 800, 1200];
+const CARD_SIZES = '(min-width: 60rem) 30rem, 100vw';
+---
+
+<article>
+  {
+    cover && (
+      <Image src={cover} alt={coverAlt ?? ''} {...coverImageProps(cover, CARD_WIDTHS, CARD_SIZES)} />
+    )
+  }
+
+  <Heading>
+    <!-- Title-only link, matching WritingPreview: a card-wide anchor makes the
+         text unselectable and announces the whole block as one link name. -->
+    <a href={href}>{title}</a>
+  </Heading>
+
+  <p>{intro}</p>
+
+  {
+    (role || year) && (
+      <p>
+        {role}
+        {role && year && ' · '}
+        {year}
+      </p>
+    )
+  }
+
+  {
+    tech.length > 0 && (
+      <ul role="list" aria-label="Built with">
+        {tech.map((item) => (
+          <li>{item}</li>
+        ))}
+      </ul>
+    )
+  }
+</article>
