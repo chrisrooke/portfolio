@@ -113,7 +113,8 @@ Routes
 /stash                  stash feed          (stream-only, fragment ids)
 /about, /colophon, /404 static
 /sitemap                human index of everything
-/rss.xml                one feed, whole site
+/rss.xml                everything
+/articles.xml           writing + projects only
 /sitemap-index.xml      machine sitemap (integration)
 ```
 
@@ -709,12 +710,25 @@ which turned out to be necessary rather than nice:
 > so the fragment stays last. Verified by checking every `#` in the feed resolves to a real
 > `id` in the built HTML: 11 of 11.
 
-**One RSS feed for the whole site**, not one per collection. §4.4 keeps Projects, Writing and
-the stream in separate homepage sections because they have different *visual* weight — that
-is a layout argument and does not apply to a feed reader. Someone subscribing to a personal
-site wants what the person published, in order. Four feeds would mostly produce three that
-nobody subscribes to. Untitled notes get the same `Note — <date>` fallback the accessible
-name uses, since RSS has no concept of an untitled item and readers render a blank row.
+**Two RSS feeds, not one and not four.**
+
+| Feed | Contains | For |
+|---|---|---|
+| `/rss.xml` | writing, projects, notes, stash | The default — "tell me what this person published" |
+| `/articles.xml` | writing, projects | The essays without a week of one-line notes between them |
+
+The split is **by what it asks of the reader, not by collection** — which is why the narrow
+feed spans two collections and is named for its contents rather than for either of them.
+Everything in it has a title, an intro and a page of its own; it is something you sit down to
+read. A feed per collection would have produced three nobody subscribes to.
+
+Both are advertised with `<link rel="alternate">`, with titles that say which is which —
+two entries both called "Chris Rooke" would leave an autodiscovering reader with a coin toss.
+Item-building is shared in `lib/feeds.ts`, so the two endpoints differ only in what they
+concatenate.
+
+Untitled notes get the same `Note — <date>` fallback the accessible name uses, since RSS has
+no concept of an untitled item and readers render a blank row.
 
 **The social card lives in `public/`,** which looks like a violation of the §5 rule about
 `src/` vs `public/` but isn't. That rule exists for images needing resizing, format
@@ -750,6 +764,7 @@ src/
     format.ts                # date formatting
     images.ts                # cover <Image> props + the vector guard
     facets.ts                # filter group shapes + the shared tag facet
+    feeds.ts                 # RSS item-building, shared by both feeds
   scripts/
     facet-filter.ts          # client-side faceted filtering (§4.5)
   components/
@@ -770,7 +785,8 @@ src/
     about.astro
     colophon.astro
     sitemap.astro            # human sitemap; sitemap-index.xml is the machine one
-    rss.xml.js
+    rss.xml.ts               # everything
+    articles.xml.ts          # writing + projects only
     404.astro
     writing/index.astro
     writing/[...id].astro
@@ -914,7 +930,7 @@ are already reflected in the sections above.
 | Stash body | **Optional**, unlike a note's. A rating with no review is a legitimate entry, and there is no permalink for it to look empty on. |
 | Creator alias map | **No.** It would catch "Ursula K. Le Guin" vs "Ursula Le Guin", but it is a controlled vocabulary by another name. The guard catches variant *spellings*; different names are out of scope. |
 | Stash facet options | **Derived from the entries**, never the full `medium` enum — a medium nothing is logged in is not offered, matching `getTagsInUse()`. |
-| RSS granularity | **One feed, whole site.** The homepage's section split is a layout argument, not a syndication one. |
+| RSS granularity | **Two feeds**, split by what they ask of the reader: everything, or long-form only. Not one per collection — that would be three nobody subscribes to. |
 | Addressing notes/stash | **Fragment ids on the feed page.** Still no permalinks; RSS needs unique links and "link me to that note" needs an answer. |
 | Social card location | **`public/`,** the one deliberate exception to the src/ rule. Fixed size, no resizing, and the alternative was a global `dangerouslyProcessSVG`. |
 | Human vs machine sitemap | **Both.** Different audiences. Only `/404` is excluded from the machine one. |

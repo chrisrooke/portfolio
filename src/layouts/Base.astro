@@ -84,7 +84,23 @@ const path = Astro.url.pathname;
     {description && <meta name="description" content={description} />}
     {canonical && <link rel="canonical" href={canonical} />}
 
-    <link rel="alternate" type="application/rss+xml" title={siteName} href="/rss.xml" />
+    {/*
+      Both feeds are advertised. Readers that autodiscover offer a choice, and
+      the titles have to say which is which — two entries both called "Chris
+      Rooke" would be a coin toss.
+    */}
+    <link
+      rel="alternate"
+      type="application/rss+xml"
+      title={`${siteName} — everything`}
+      href="/rss.xml"
+    />
+    <link
+      rel="alternate"
+      type="application/rss+xml"
+      title={`${siteName} — writing and projects`}
+      href="/articles.xml"
+    />
 
     <meta property="og:type" content={type} />
     <meta property="og:title" content={title} />
@@ -129,7 +145,7 @@ const path = Astro.url.pathname;
       <p>&copy; {new Date().getFullYear()} {siteName}</p>
       <p>
         <a href="/sitemap">Sitemap</a> · <a href="/colophon">Colophon</a> ·
-        <a href="/rss.xml">RSS</a>
+        <a href="/rss.xml">RSS</a> <small>(<a href="/articles.xml">long-form only</a>)</small>
       </p>
     </footer>
   </body>
