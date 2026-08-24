@@ -8,7 +8,7 @@ uses the Content Layer API with **Zod 4.4.3**.
 > tutorials online still show the old form. `reference`, `defineCollection`, `getCollection`,
 > `getEntries`, and `render` all still come from `astro:content`; only `z` moved.
 
-Status: **Phases 0–9 implemented.** Phases at the bottom.
+Status: **All phases (0–10) implemented.** Phases at the bottom.
 
 ---
 
@@ -109,9 +109,12 @@ Routes
 /writing/[id]           post page (internal posts only)
 /projects               index
 /projects/[id]          case study + its writing series
-/notes                  notes feed          (stream-only, no permalinks)
-/stash                  stash feed          (stream-only, no permalinks)
+/notes                  notes feed          (stream-only, fragment ids)
+/stash                  stash feed          (stream-only, fragment ids)
 /about, /colophon, /404 static
+/sitemap                human index of everything
+/rss.xml                one feed, whole site
+/sitemap-index.xml      machine sitemap (integration)
 ```
 
 **Only `writing` and `projects` have dynamic routes.** Notes and Stash are stream-only by
@@ -681,6 +684,53 @@ list". Either can exist without the other.
 options — that is microseconds, and the code stays a plain loop instead of an index that
 has to be invalidated. Revisit only if the Stash grows into the thousands.
 
+### 4.6 Syndication and addressability (Phase 10)
+
+> **⚠️ `site` in `astro.config.mjs` is a placeholder.** `https://chrisrooke.dev` was invented.
+> Change that one line before deploying: canonical URLs, `og:url`, every `<loc>` in the
+> machine sitemap and every `<link>` in the RSS feed derive from it. Nothing else needs
+> touching. It was unset until Phase 10, which is why `Base.astro` guards `Astro.site` — the
+> canonical and `og:url` tags were silently absent rather than wrong.
+
+**Notes and stash entries get fragment ids, not permalinks.** `FeedItem` renders
+`id="note-<id>"` / `id="stash-<id>"` on each `<article>`. This is not a reversal of the
+stream-only decision — there is still no page per item — but it makes them *addressable*,
+which turned out to be necessary rather than nice:
+
+- RSS needs a unique link per item. Readers key on the URL, so eleven notes all linking to
+  `/notes` collapse into one entry.
+- "Link me to that note" is a reasonable request, and `/notes/#note-x` answers it.
+- The prefix matters: entry ids are unique within a collection, not across two of them, and
+  the homepage stream renders both kinds in one document.
+
+> **`@astrojs/rss` appends a trailing slash to relative links — after the fragment.**
+> `/notes#note-x` became `/notes#note-x/`, which silently breaks the anchor while looking
+> almost right. Stream links are therefore built absolute with `new URL(..., context.site)`
+> so the fragment stays last. Verified by checking every `#` in the feed resolves to a real
+> `id` in the built HTML: 11 of 11.
+
+**One RSS feed for the whole site**, not one per collection. §4.4 keeps Projects, Writing and
+the stream in separate homepage sections because they have different *visual* weight — that
+is a layout argument and does not apply to a feed reader. Someone subscribing to a personal
+site wants what the person published, in order. Four feeds would mostly produce three that
+nobody subscribes to. Untitled notes get the same `Note — <date>` fallback the accessible
+name uses, since RSS has no concept of an untitled item and readers render a blank row.
+
+**The social card lives in `public/`,** which looks like a violation of the §5 rule about
+`src/` vs `public/` but isn't. That rule exists for images needing resizing, format
+conversion and intrinsic dimensions; a social card is a fixed 1200×630 referenced by absolute
+URL and needs none of them. The alternative was enabling `image.dangerouslyProcessSVG` to
+rasterise the SVG source through the pipeline — a global setting that would change how every
+content cover is handled, which is a large blast radius for one static file. The SVG source
+stays in `src/assets/` and is regenerated with sharp. A page's own cover is used instead
+where it has one, with SVG covers falling back to the default for the same reason.
+
+**Two sitemaps, deliberately.** `sitemap-index.xml` is for crawlers; `/sitemap` is a page a
+person can read, and the only place on the site where every individual note and stash entry
+is enumerated. Only `/404` is excluded from the machine one — an error page is not worth
+crawling, but the human sitemap is a real page and excluding it would be a category error
+about what `sitemap.xml` is for.
+
 ---
 
 ## 5. Directory layout
@@ -713,10 +763,14 @@ src/
   layouts/
     Base.astro
     Post.astro
+  assets/
+    og-default.svg           # source for public/og-default.png (sharp)
   pages/
     index.astro
     about.astro
     colophon.astro
+    sitemap.astro            # human sitemap; sitemap-index.xml is the machine one
+    rss.xml.js
     404.astro
     writing/index.astro
     writing/[...id].astro
@@ -814,7 +868,7 @@ Small and independently verifiable, so each one can be understood before the nex
 | **7.5** | ✅ `facet-filter.ts` + `FacetFilter.astro` + `lib/facets.ts`; `/writing` migrated, `/notes` filtered | Done — three modes, AND across / OR within, availability counts, link-driven facet, empty state |
 | **8** | ✅ `stash` collection, `/stash`, `StashMeta`, `getStream()`, creator-spelling guard, `FeedItem` union widened | Done — stream interleaves strictly by date, five facets combine, guard names both spellings |
 | **9** | ✅ Homepage assembled: projects, writing, stream slice | Done — three sections in order, outline h1→h2→h3 with no skips |
-| **10** | `/about`, `/colophon`, `/404`; RSS, sitemap, OG images | — |
+| **10** | ✅ `/about`, `/colophon`, `/404`, `/sitemap`; RSS, `sitemap-index.xml`, OG images, `site` set | Done — 16 pages, every RSS fragment resolves to a real anchor |
 
 Phases 1–2 are the ones worth going slowly on — everything after reuses their patterns.
 
@@ -860,3 +914,7 @@ are already reflected in the sections above.
 | Stash body | **Optional**, unlike a note's. A rating with no review is a legitimate entry, and there is no permalink for it to look empty on. |
 | Creator alias map | **No.** It would catch "Ursula K. Le Guin" vs "Ursula Le Guin", but it is a controlled vocabulary by another name. The guard catches variant *spellings*; different names are out of scope. |
 | Stash facet options | **Derived from the entries**, never the full `medium` enum — a medium nothing is logged in is not offered, matching `getTagsInUse()`. |
+| RSS granularity | **One feed, whole site.** The homepage's section split is a layout argument, not a syndication one. |
+| Addressing notes/stash | **Fragment ids on the feed page.** Still no permalinks; RSS needs unique links and "link me to that note" needs an answer. |
+| Social card location | **`public/`,** the one deliberate exception to the src/ rule. Fixed size, no resizing, and the alternative was a global `dangerouslyProcessSVG`. |
+| Human vs machine sitemap | **Both.** Different audiences. Only `/404` is excluded from the machine one. |

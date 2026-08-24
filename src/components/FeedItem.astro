@@ -44,7 +44,14 @@ const COVER_WIDTHS = [240, 480, 720];
 const COVER_SIZES = '(min-width: 60rem) 16rem, 40vw';
 ---
 
-<article aria-label={label}>
+{/*
+  A fragment identifier rather than a permalink. Notes and stash entries are
+  stream-only, but they still need to be addressable — the RSS feed has to give
+  each item a unique link or readers collapse them into one, and "link me to
+  that note" is a reasonable thing to want. Prefixed by kind because ids are
+  unique within a collection, not across two of them on the homepage.
+*/}
+<article id={`${item.kind}-${item.entry.id}`} aria-label={label}>
   {
     item.kind === 'stash' ? (
       <>

@@ -1,0 +1,85 @@
+---
+import Base from '../layouts/Base.astro';
+import pkg from '../../package.json';
+
+/*
+ * Generated from package.json rather than hand-listed, so the page cannot
+ * drift out of date the way a written list would — the failure mode of a
+ * colophon is quietly describing a site that no longer exists.
+ */
+const dependencies = Object.entries(pkg.dependencies ?? {}).sort(([a], [b]) =>
+  a.localeCompare(b),
+);
+---
+
+<Base title="Colophon" description="How this site is built.">
+  <h1>Colophon</h1>
+
+  <div class="prose">
+    <p>
+      A static site. Every page is HTML on disk before anyone asks for it, and
+      the only JavaScript that ships is the filtering on
+      <a href="/writing">Writing</a>, <a href="/notes">Notes</a> and
+      <a href="/stash">Stash</a> — which is an enhancement, not a requirement.
+      With it switched off you get the full unfiltered list rather than a broken
+      control.
+    </p>
+
+    <h2>Content</h2>
+
+    <p>
+      Five collections — tags, writing, projects, notes and stash — defined with
+      Astro's Content Layer API and validated with Zod at build time. The
+      governing idea is that collections are storage and feeds are views: no
+      page reads a collection directly, and draft filtering and date sorting
+      exist in exactly one file.
+    </p>
+
+    <p>
+      Several invariants a schema cannot express are checked at build time
+      instead, because Zod validates frontmatter and never sees the body. A post
+      with no body and no external link fails the build. So does a note with an
+      empty body, a project referencing writing that doesn't exist, a post
+      claimed by two series, and a creator whose name is spelled two different
+      ways in two stash entries.
+    </p>
+
+    <h2>Images</h2>
+
+    <p>
+      Cover art goes through Astro's image pipeline for resizing and format
+      conversion. Vectors deliberately skip the responsive treatment: a
+      <code>srcset</code> of an SVG is several byte-identical files under
+      different hashes, which is cost with no benefit. The social card is the
+      exception that lives in <code>public/</code> — it is a fixed 1200×630 PNG,
+      needs no resizing, and is generated from an SVG source with sharp.
+    </p>
+
+    <h2>Built with</h2>
+
+    <dl>
+      {
+        dependencies.map(([name, version]) => (
+          <>
+            <dt>{name}</dt>
+            <dd>{version}</dd>
+          </>
+        ))
+      }
+    </dl>
+
+    <p>
+      Requires Node {pkg.engines?.node ?? 'current LTS'}. Type checking is
+      TypeScript throughout, including the client-side filtering script.
+    </p>
+
+    <h2>Typography and colour</h2>
+
+    <p>
+      Not yet decided. The site was built markup-first — semantics, landmarks
+      and heading structure before a single colour — on the theory that it is
+      easier to style correct markup than to correct styled markup. This section
+      will say something once there is something to say.
+    </p>
+  </div>
+</Base>

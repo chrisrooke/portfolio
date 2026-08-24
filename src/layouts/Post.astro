@@ -42,7 +42,11 @@ const COVER_WIDTHS = [480, 800, 1200];
 const COVER_SIZES = '(min-width: 60rem) 60rem, 100vw';
 ---
 
-<Base title={title} description={intro}>
+{/*
+  The cover doubles as the social card where there is one, and everything
+  through this layout has a publish date, so og:type is always "article".
+*/}
+<Base title={title} description={intro} image={cover} type="article">
   <article>
     <header>
       <h1>{title}</h1>

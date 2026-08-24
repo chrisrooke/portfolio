@@ -1,22 +1,65 @@
 ---
 import '../styles/global.css';
+import { getImage } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
 
 interface Props {
   /** Page title. Rendered as-is in <title>, suffixed with the site name. */
   title: string;
   /** Meta description. Optional, but worth setting on every real page. */
   description?: string;
+  /**
+   * Social card image. Falls back to the site-wide card. Pass an entry's
+   * cover where there is one — a post shared with its own artwork looks
+   * considerably less generic than one shared with the default.
+   */
+  image?: ImageMetadata;
+  /** og:type. "article" for anything with a publish date. */
+  type?: 'website' | 'article';
 }
 
-const { title, description } = Astro.props;
+const { title, description, image, type = 'website' } = Astro.props;
 
 const siteName = 'Chris Rooke';
 
-// Astro.site is undefined until `site` is set in astro.config.mjs.
-// Canonical URLs and RSS both need it — see docs/content-architecture.md.
 const canonical = Astro.site
   ? new URL(Astro.url.pathname, Astro.site).href
   : undefined;
+
+/*
+ * og:image is one of the few places an SVG is not acceptable — most platforms
+ * refuse to render one — so a raster is required either way.
+ *
+ * The default card lives in public/ rather than going through the image
+ * pipeline, which looks like a violation of the §5 rule but isn't: that rule
+ * exists for images needing resizing, format conversion and intrinsic
+ * dimensions. A social card is a fixed 1200×630 referenced by absolute URL and
+ * needs none of those. Rasterising it through the pipeline instead would mean
+ * enabling `image.dangerouslyProcessSVG`, which is global and would change how
+ * every content cover is handled — a large blast radius for one static file.
+ * The SVG source is kept in src/assets/ and regenerated with sharp; see the
+ * colophon.
+ *
+ * A page's own cover is used when it has one, since a post shared with its own
+ * artwork looks considerably less generic. SVG covers fall back to the default
+ * for the same reason as above. `fit: 'cover'` matters here: covers are
+ * landscape or portrait at various ratios, and without it a book jacket would
+ * be squashed into 1200×630.
+ */
+const ogPath =
+  image && image.format !== 'svg'
+    ? (
+        await getImage({
+          src: image,
+          format: 'png',
+          width: 1200,
+          height: 630,
+          fit: 'cover',
+        })
+      ).src
+    : '/og-default.png';
+
+const ogUrl = Astro.site ? new URL(ogPath, Astro.site).href : ogPath;
 
 const nav = [
   { href: '/projects', label: 'Projects' },
@@ -41,11 +84,18 @@ const path = Astro.url.pathname;
     {description && <meta name="description" content={description} />}
     {canonical && <link rel="canonical" href={canonical} />}
 
-    <meta property="og:type" content="website" />
+    <link rel="alternate" type="application/rss+xml" title={siteName} href="/rss.xml" />
+
+    <meta property="og:type" content={type} />
     <meta property="og:title" content={title} />
     <meta property="og:site_name" content={siteName} />
     {description && <meta property="og:description" content={description} />}
     {canonical && <meta property="og:url" content={canonical} />}
+    <meta property="og:image" content={ogUrl} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+
+    <meta name="twitter:card" content="summary_large_image" />
   </head>
 
   <body>
@@ -77,7 +127,10 @@ const path = Astro.url.pathname;
 
     <footer>
       <p>&copy; {new Date().getFullYear()} {siteName}</p>
-      <p><a href="/colophon">Colophon</a></p>
+      <p>
+        <a href="/sitemap">Sitemap</a> · <a href="/colophon">Colophon</a> ·
+        <a href="/rss.xml">RSS</a>
+      </p>
     </footer>
   </body>
 </html>

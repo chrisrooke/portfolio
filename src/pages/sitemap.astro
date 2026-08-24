@@ -1,0 +1,145 @@
+---
+import Base from '../layouts/Base.astro';
+import {
+  getProjects,
+  getWriting,
+  getNotes,
+  getStash,
+  writingHref,
+  projectHref,
+  isExternal,
+} from '../lib/content';
+import { formatDate, machineDate } from '../lib/format';
+
+/**
+ * The human sitemap, distinct from the sitemap.xml the integration generates
+ * for crawlers. Same underlying content, different audience — one is a machine
+ * index and this is a page you can actually read.
+ *
+ * Notes and stash entries appear as fragment links into their feeds, since
+ * neither has a page of its own. Listing them anyway matters: this is the only
+ * place on the site where every individual item is enumerated.
+ */
+const [projects, writing, notes, stash] = await Promise.all([
+  getProjects(),
+  getWriting(),
+  getNotes(),
+  getStash(),
+]);
+
+const pages = [
+  { href: '/', label: 'Home' },
+  { href: '/about', label: 'About' },
+  { href: '/colophon', label: 'Colophon' },
+  { href: '/rss.xml', label: 'RSS feed' },
+];
+---
+
+<Base title="Sitemap" description="Everything on this site, in one list.">
+  <h1>Sitemap</h1>
+
+  <div class="prose">
+    <p>
+      Everything here, in one place. There is also a
+      <a href="/sitemap-index.xml">machine-readable sitemap</a> for crawlers.
+    </p>
+  </div>
+
+  <nav aria-label="Sitemap">
+    <section aria-labelledby="sitemap-pages">
+      <h2 id="sitemap-pages">Pages</h2>
+      <ul role="list">
+        {
+          pages.map(({ href, label }) => (
+            <li>
+              <a href={href}>{label}</a>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section aria-labelledby="sitemap-projects">
+      <h2 id="sitemap-projects">Projects</h2>
+      <p><a href="/projects">All projects</a></p>
+      <ul role="list">
+        {
+          projects.map((entry) => (
+            <li>
+              <a href={projectHref(entry)}>{entry.data.title}</a>{' '}
+              <time datetime={machineDate(entry.data.publishDate)}>
+                {formatDate(entry.data.publishDate)}
+              </time>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section aria-labelledby="sitemap-writing">
+      <h2 id="sitemap-writing">Writing</h2>
+      <p><a href="/writing">All writing</a></p>
+      <ul role="list">
+        {
+          writing.map((entry) => (
+            <li>
+              <a href={writingHref(entry)}>
+                {entry.data.title}
+                {isExternal(entry) && <span class="visually-hidden"> (external link)</span>}
+              </a>{' '}
+              <time datetime={machineDate(entry.data.publishDate)}>
+                {formatDate(entry.data.publishDate)}
+              </time>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section aria-labelledby="sitemap-notes">
+      <h2 id="sitemap-notes">Notes</h2>
+      <p><a href="/notes">All notes</a></p>
+      <ul role="list">
+        {
+          notes.map((entry) => (
+            <li>
+              {/*
+                Untitled notes are the common case, so the date carries the
+                link text. A list of identical "Note" links would be useless
+                to anyone navigating by link.
+              */}
+              <a href={`/notes#note-${entry.id}`}>
+                {entry.data.title ?? `Note — ${formatDate(entry.data.publishDate)}`}
+              </a>
+              {entry.data.title && (
+                <>
+                  {' '}
+                  <time datetime={machineDate(entry.data.publishDate)}>
+                    {formatDate(entry.data.publishDate)}
+                  </time>
+                </>
+              )}
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section aria-labelledby="sitemap-stash">
+      <h2 id="sitemap-stash">Stash</h2>
+      <p><a href="/stash">All stash</a></p>
+      <ul role="list">
+        {
+          stash.map((entry) => (
+            <li>
+              <a href={`/stash#stash-${entry.id}`}>{entry.data.title}</a>{' '}
+              <time datetime={machineDate(entry.data.publishDate)}>
+                {formatDate(entry.data.publishDate)}
+              </time>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+  </nav>
+</Base>
