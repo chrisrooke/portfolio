@@ -2,22 +2,26 @@
 import Base from '../layouts/Base.astro';
 import WritingPreview from '../components/WritingPreview.astro';
 import ProjectPreview from '../components/ProjectPreview.astro';
-import { getWriting, getProjects } from '../lib/content';
+import FeedItem from '../components/FeedItem.astro';
+import { getWriting, getProjects, getStream } from '../lib/content';
 
 /**
- * Partial homepage. Final composition is Projects, then Writing, then a slice
- * of the Notes/Stash stream — see docs/content-architecture.md §4.4. The
- * stream arrives in Phase 8; the first two sections are live.
+ * Three sections, in this order — see docs/content-architecture.md §4.4.
  *
  * Projects lead because this is a portfolio: the work comes before the writing
- * about the work.
+ * about the work. The Notes/Stash stream is one merged slice rather than two
+ * sections, because those two genuinely interleave; Writing and Projects do
+ * not, and a long-form article sitting between a one-line note and a film
+ * rating reads as noise.
  */
-const RECENT_COUNT = 3;
 const PROJECT_COUNT = 2;
+const WRITING_COUNT = 3;
+const STREAM_COUNT = 4;
 
-const [recentWriting, recentProjects] = await Promise.all([
-  getWriting().then((posts) => posts.slice(0, RECENT_COUNT)),
+const [recentProjects, recentWriting, recentStream] = await Promise.all([
   getProjects().then((projects) => projects.slice(0, PROJECT_COUNT)),
+  getWriting().then((posts) => posts.slice(0, WRITING_COUNT)),
+  getStream().then((items) => items.slice(0, STREAM_COUNT)),
 ]);
 ---
 
@@ -54,5 +58,31 @@ const [recentWriting, recentProjects] = await Promise.all([
     </ul>
 
     <p><a href="/writing">All writing</a></p>
+  </section>
+
+  <section aria-labelledby="lately">
+    <h2 id="lately">Lately</h2>
+
+    {/*
+      The same FeedItem as /notes and /stash, bodies and all — no compact
+      variant. Notes have no permalink, so a truncated item here would point
+      at a feed the reader then has to search; and a `compact` prop is how a
+      preview component starts accumulating the conditionals §4.4 warns about.
+      The cost is that homepage length varies with whatever was last posted.
+      If that ever bites, the fix is a smaller STREAM_COUNT, not truncation.
+    */}
+    <ul role="list">
+      {
+        recentStream.map((item) => (
+          <li>
+            <FeedItem item={item} headingLevel={3} />
+          </li>
+        ))
+      }
+    </ul>
+
+    <p>
+      <a href="/notes">All notes</a> · <a href="/stash">All stash</a>
+    </p>
   </section>
 </Base>

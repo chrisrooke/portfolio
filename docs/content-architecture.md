@@ -8,7 +8,7 @@ uses the Content Layer API with **Zod 4.4.3**.
 > tutorials online still show the old form. `reference`, `defineCollection`, `getCollection`,
 > `getEntries`, and `render` all still come from `astro:content`; only `z` moved.
 
-Status: **Phases 0–8 implemented.** Phases at the bottom.
+Status: **Phases 0–9 implemented.** Phases at the bottom.
 
 ---
 
@@ -520,6 +520,14 @@ visual weight, and a long-form article sitting between a one-line note and a fil
 reads as noise. Separate sections also mean a new post or project can never be buried under a
 week of notes — each section is its own guaranteed slot.
 
+**As built (Phase 9).** Counts are 2 projects, 3 posts, 4 stream items. The stream slice uses
+the same `FeedItem` as `/notes` and `/stash`, bodies and all — there is no `compact` variant,
+for two reasons. Notes have no permalink, so a truncated item on the homepage would point at
+a feed the reader then has to search; and a `compact` prop is exactly how a preview component
+starts accumulating the conditionals warned about below. The cost is that homepage length
+varies with whatever was posted last. If that bites, the fix is a smaller `STREAM_COUNT`, not
+truncation.
+
 Two consequences worth noting:
 
 - **`FeedItem`'s union stays two-armed** (`note | stash`). Only the stream needs
@@ -805,15 +813,17 @@ Small and independently verifiable, so each one can be understood before the nex
 | **7** | ✅ `notes` collection, `/notes` feed, `FeedItem`, `getNoteFeed()` normalisation | Done — dev 6 / prod 5, both guards fire, long note renders unclipped |
 | **7.5** | ✅ `facet-filter.ts` + `FacetFilter.astro` + `lib/facets.ts`; `/writing` migrated, `/notes` filtered | Done — three modes, AND across / OR within, availability counts, link-driven facet, empty state |
 | **8** | ✅ `stash` collection, `/stash`, `StashMeta`, `getStream()`, creator-spelling guard, `FeedItem` union widened | Done — stream interleaves strictly by date, five facets combine, guard names both spellings |
-| **9** | Homepage assembled: projects, writing, stream slice | All three sections live in order |
+| **9** | ✅ Homepage assembled: projects, writing, stream slice | Done — three sections in order, outline h1→h2→h3 with no skips |
 | **10** | `/about`, `/colophon`, `/404`; RSS, sitemap, OG images | — |
 
 Phases 1–2 are the ones worth going slowly on — everything after reuses their patterns.
 
-Note that the **homepage can't be finished until Phase 9**, since it depends on Projects
-(Phase 6) and the stream (Phase 8). Until then `/` stays a stub showing Writing only. That's
-a deliberate consequence of building collections in dependency order rather than
-page-by-page; the alternative is rewriting the homepage three times.
+The **homepage couldn't be finished until Phase 9**, since it depended on Projects (Phase 6)
+and the stream (Phase 8). Until then `/` was a stub. That was a deliberate consequence of
+building collections in dependency order rather than page-by-page; the alternative was
+rewriting the homepage three times. In the event it was rewritten twice — a Writing-only
+stub, then Projects added in 6, then the stream in 9 — because Projects leading made the
+section worth landing as soon as the collection existed rather than waiting.
 
 ---
 
