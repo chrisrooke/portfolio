@@ -1,1 +1,149 @@
-/* Global styles. Imported once, in src/layouts/Base.astro. */
+:root {
+   /* Colours */
+
+  --color-black: #000000;
+  --color-white: #ffffff;
+
+  --color-grey-01: #f4f4f4;
+  --color-grey-02: #d8d8d8;
+  --color-grey-03: #bfbfbf;
+  --color-grey-04: #a7a7a7;
+  --color-grey-05: #929292;
+  --color-grey-06: #7f7f7f;
+  --color-grey-07: #6c6c6c;
+  --color-grey-08: #5b5b5b;
+  --color-grey-09: #4b4b4b;
+  --color-grey-10: #3a3a3a;
+  --color-grey-11: #282828;
+  --color-grey-12: #101010;
+
+  --color-pink-01: #fff0f5;
+  --color-pink-02: #ffcadd;
+  --color-pink-03: #ffa4c7;
+  --color-pink-04: #ff7cb4;
+  --color-pink-05: #ff4aa2;
+  --color-pink-06: #f30090;
+  --color-pink-07: #d1007c;
+  --color-pink-08: #b20069;
+  --color-pink-09: #940057;
+  --color-pink-10: #750043;
+  --color-pink-11: #55002f;
+  --color-pink-12: #280014;
+
+  --color-green-01: #d9fff8;
+  --color-green-02: #00e8c7;
+  --color-green-03: #00d1b0;
+  --color-green-04: #00ba9c;
+  --color-green-05: #00a489;
+  --color-green-06: #008f77;
+  --color-green-07: #007b66;
+  --color-green-08: #006856;
+  --color-green-09: #005546;
+  --color-green-10: #004336;
+  --color-green-11: #002f25;
+  --color-green-12: #00130e;
+
+  /* Typography */
+
+  --font-family-sans: "Basier Circle";
+  --font-family-mono: "Basier Circle Mono";
+  --font-family-narrow: "Basier Circle Narrow";
+
+  /* --step--2: clamp(0.6076rem, 0.5498rem + 0.2894vw, 0.7813rem);
+  --step--1: clamp(0.7292rem, 0.6597rem + 0.3472vw, 0.9375rem);
+  --step-0: clamp(0.875rem, 0.7917rem + 0.4167vw, 1.125rem);
+  --step-1: clamp(1.05rem, 0.95rem + 0.5vw, 1.35rem);
+  --step-2: clamp(1.26rem, 1.14rem + 0.6vw, 1.62rem);
+  --step-3: clamp(1.512rem, 1.368rem + 0.72vw, 1.944rem);
+  --step-4: clamp(1.8144rem, 1.6416rem + 0.864vw, 2.3328rem);
+  --step-5: clamp(2.1773rem, 1.9699rem + 1.0368vw, 2.7994rem); */
+
+  --font-size-desktop-1: 0.8125rem;
+  --font-size-desktop-2: 0.9375rem;
+  --font-size-desktop-3: 1.125rem;
+  --font-size-desktop-4: 1.375rem;
+  --font-size-desktop-5: 1.625rem;
+  --font-size-desktop-6: 1.9375rem;
+  --font-size-desktop-7: 2.3125rem;
+  --font-size-desktop-8: 2.8125rem;
+
+  --line-height-desktop-1: 1.25rem;
+  --line-height-desktop-2: 1.5rem;
+  --line-height-desktop-3: 1.75rem;
+  --line-height-desktop-4: 2rem;
+  --line-height-desktop-5: 2.375rem;
+  --line-height-desktop-6: 2.625rem;
+  --line-height-desktop-7: 3rem;
+  --line-height-desktop-8: 3.625rem;
+
+  --font-size-mobile-1: 0.625rem;
+  --font-size-mobile-2: 0.75rem;
+  --font-size-mobile-3: 0.875rem;
+  --font-size-mobile-4: 1.0625rem;
+  --font-size-mobile-5: 1.25rem;
+  --font-size-mobile-6: 1.5rem;
+  --font-size-mobile-7: 1.8125rem;
+  --font-size-mobile-8: 2.1875rem;
+
+  --line-height-mobile-1: 1rem;
+  --line-height-mobile-2: 1.125rem;
+  --line-height-mobile-3: 1.375rem;
+  --line-height-mobile-4: 1.625rem;
+  --line-height-mobile-5: 1.875rem;
+  --line-height-mobile-6: 2rem;
+  --line-height-mobile-7: 2.375rem;
+  --line-height-mobile-8: 2.875rem;
+}
+
+[data-theme="dark"] {
+
+  /* Base */
+  --color-black: #ffffff;
+  --color-white: #000000;
+
+  /* Grey */
+  --color-grey-01: #101010;
+  --color-grey-02: #282828;
+  --color-grey-03: #3a3a3a;
+  --color-grey-04: #4b4b4b;
+  --color-grey-05: #5b5b5b;
+  --color-grey-06: #6c6c6c;
+  --color-grey-07: #7f7f7f;
+  --color-grey-08: #929292;
+  --color-grey-09: #a7a7a7;
+  --color-grey-10: #bfbfbf;
+  --color-grey-11: #d8d8d8;
+  --color-grey-12: #f4f4f4;
+
+  /* Pink */
+  --color-pink-01: #280014;
+  --color-pink-02: #55002f;
+  --color-pink-03: #750043;
+  --color-pink-04: #940057;
+  --color-pink-05: #b20069;
+  --color-pink-06: #d1007c;
+  --color-pink-07: #f30090;
+  --color-pink-08: #ff4aa2;
+  --color-pink-09: #ff7cb4;
+  --color-pink-10: #ffa4c7;
+  --color-pink-11: #ffcadd;
+  --color-pink-12: #fff0f5;
+
+  /* Green */
+  --color-green-01: #00130e;
+  --color-green-02: #002f25;
+  --color-green-03: #004336;
+  --color-green-04: #005546;
+  --color-green-05: #006856;
+  --color-green-06: #007b66;
+  --color-green-07: #008f77;
+  --color-green-08: #00a489;
+  --color-green-09: #00ba9c;
+  --color-green-10: #00d1b0;
+  --color-green-11: #00e8c7;
+  --color-green-12: #d9fff8;
+}
+
+*, *::before {
+   box-sizing: border-box;
+}
