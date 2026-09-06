@@ -1,3 +1,104 @@
+/*
+ * Fonts — self-hosted from /public/fonts, so the same absolute URLs resolve
+ * under `astro dev` (public/ is served at the root) and in the build (public/
+ * is copied verbatim into dist/). No bundler hashing, which is what lets
+ * Base.astro hand-write <link rel="preload"> for these files.
+ *
+ * Each family is declared once per weight/style rather than as one entry with
+ * a weight range: these are static faces, and letting the browser pick the
+ * real 600 beats it synthesising one by smearing the 400.
+ */
+
+/* Basier Circle — 400/500/600/700, upright and italic */
+
+@font-face {
+  font-family: "Basier Circle";
+  src: url("/fonts/basiercircle-regular-webfont.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Basier Circle";
+  src: url("/fonts/basiercircle-regularitalic-webfont.woff2") format("woff2");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Basier Circle";
+  src: url("/fonts/basiercircle-medium-webfont.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Basier Circle";
+  src: url("/fonts/basiercircle-mediumitalic-webfont.woff2") format("woff2");
+  font-weight: 500;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Basier Circle";
+  src: url("/fonts/basiercircle-semibold-webfont.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Basier Circle";
+  src: url("/fonts/basiercircle-semibolditalic-webfont.woff2") format("woff2");
+  font-weight: 600;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Basier Circle";
+  src: url("/fonts/basiercircle-bold-webfont.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Basier Circle";
+  src: url("/fonts/basiercircle-bolditalic-webfont.woff2") format("woff2");
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+
+/*
+ * Basier Circle Narrow — only the bold weight is on disk, so it is the only
+ * one declared. Asking for --font-family-narrow at any lighter weight falls
+ * through to the stack rather than getting a faked light Narrow.
+ */
+
+@font-face {
+  font-family: "Basier Circle Narrow";
+  src: url("/fonts/basiercirclenarrow-bold-webfont.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Quablo — display face, bold only */
+
+@font-face {
+  font-family: "Quablo";
+  src: url("/fonts/Quablo-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
    /* Colours */
 
@@ -45,20 +146,40 @@
 
   /* Typography */
 
-  --font-family-sans: "Basier Circle";
-  --font-family-mono: "Basier Circle Mono";
-  --font-family-narrow: "Basier Circle Narrow";
+  --font-family-sans: "Basier Circle", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-family-mono: "Basier Circle Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font-family-narrow: "Basier Circle Narrow", "Basier Circle", ui-sans-serif, system-ui, sans-serif;
+  --font-family-display: "Quablo", "Basier Circle", ui-sans-serif, system-ui, sans-serif;
 
-  /* --step--2: clamp(0.6076rem, 0.5498rem + 0.2894vw, 0.7813rem);
-  --step--1: clamp(0.7292rem, 0.6597rem + 0.3472vw, 0.9375rem);
-  --step-0: clamp(0.875rem, 0.7917rem + 0.4167vw, 1.125rem);
-  --step-1: clamp(1.05rem, 0.95rem + 0.5vw, 1.35rem);
-  --step-2: clamp(1.26rem, 1.14rem + 0.6vw, 1.62rem);
-  --step-3: clamp(1.512rem, 1.368rem + 0.72vw, 1.944rem);
-  --step-4: clamp(1.8144rem, 1.6416rem + 0.864vw, 2.3328rem);
-  --step-5: clamp(2.1773rem, 1.9699rem + 1.0368vw, 2.7994rem); */
+  --step-1: round(clamp(0.6076rem, 0.5498rem + 0.2894vw, 0.7825rem), 1px);
+  --step-2: round(clamp(0.7292rem, 0.6597rem + 0.3472vw, 0.9375rem), 1px);
+  --step-3: round(clamp(0.875rem,  0.7917rem + 0.4167vw, 1.125rem),  1px);
+  --step-4: round(clamp(1.05rem,   0.95rem   + 0.5vw,    1.35rem),   1px);
+  --step-5: round(clamp(1.26rem,   1.14rem   + 0.6vw,    1.62rem),   1px);
+  --step-6: round(clamp(1.512rem,  1.368rem  + 0.72vw,   1.944rem),  1px);
+  --step-7: round(clamp(1.8144rem, 1.6416rem + 0.864vw,  2.3328rem), 1px);
+  --step-8: round(clamp(2.1773rem, 1.9699rem + 1.0368vw, 2.7994rem), 1px);
 
-  --font-size-desktop-1: 0.8125rem;
+  /* leading — snapped to a 0.125rem (2px) rhythm grid */
+  --leading-1: round(calc(var(--step-1) * 1.56),  0.125rem);
+  --leading-2: round(calc(var(--step-2) * 1.56),  0.125rem);
+  --leading-3: round(calc(var(--step-3) * 1.56),  0.125rem);
+  --leading-4: round(calc(var(--step-4) * 1.485), 0.125rem);
+  --leading-5: round(calc(var(--step-5) * 1.475), 0.125rem);
+  --leading-6: round(calc(var(--step-6) * 1.35),  0.125rem);
+  --leading-7: round(calc(var(--step-7) * 1.30),  0.125rem);
+  --leading-8: round(calc(var(--step-8) * 1.30),  0.125rem);
+  
+  /* --step-1: clamp(0.6076rem, 0.5498rem + 0.2894vw, 0.7813rem);
+  --step-2: clamp(0.7292rem, 0.6597rem + 0.3472vw, 0.9375rem);
+  --step-3: clamp(0.875rem, 0.7917rem + 0.4167vw, 1.125rem);
+  --step-4: clamp(1.05rem, 0.95rem + 0.5vw, 1.35rem);
+  --step-5: clamp(1.26rem, 1.14rem + 0.6vw, 1.62rem);
+  --step-6: clamp(1.512rem, 1.368rem + 0.72vw, 1.944rem);
+  --step-7: clamp(1.8144rem, 1.6416rem + 0.864vw, 2.3328rem);
+  --step-8: clamp(2.1773rem, 1.9699rem + 1.0368vw, 2.7994rem); */
+
+  /* --font-size-desktop-1: 0.8125rem;
   --font-size-desktop-2: 0.9375rem;
   --font-size-desktop-3: 1.125rem;
   --font-size-desktop-4: 1.375rem;
@@ -92,7 +213,7 @@
   --line-height-mobile-5: 1.875rem;
   --line-height-mobile-6: 2rem;
   --line-height-mobile-7: 2.375rem;
-  --line-height-mobile-8: 2.875rem;
+  --line-height-mobile-8: 2.875rem; */
 }
 
 [data-theme="dark"] {
@@ -144,6 +265,35 @@
   --color-green-12: #d9fff8;
 }
 
+@supports not (width: round(1px, 1px)) {
+  :root {
+    --step-1: clamp(0.6076rem, 0.5498rem + 0.2894vw, 0.7825rem);
+    --step-2: clamp(0.7292rem, 0.6597rem + 0.3472vw, 0.9375rem);
+    --step-3: clamp(0.875rem,  0.7917rem + 0.4167vw, 1.125rem);
+    --step-4: clamp(1.05rem,   0.95rem   + 0.5vw,    1.35rem);
+    --step-5: clamp(1.26rem,   1.14rem   + 0.6vw,    1.62rem);
+    --step-6: clamp(1.512rem,  1.368rem  + 0.72vw,   1.944rem);
+    --step-7: clamp(1.8144rem, 1.6416rem + 0.864vw,  2.3328rem);
+    --step-8: clamp(2.1773rem, 1.9699rem + 1.0368vw, 2.7994rem);
+
+    /* leading — snapped to a 0.125rem (2px) rhythm grid */
+    --leading-1: calc(var(--step-1) * 1.56);
+    --leading-2: calc(var(--step-2) * 1.56);
+    --leading-3: calc(var(--step-3) * 1.56);
+    --leading-4: calc(var(--step-4) * 1.485);
+    --leading-5: calc(var(--step-5) * 1.475);
+    --leading-6: calc(var(--step-6) * 1.35);
+    --leading-7: calc(var(--step-7) * 1.30);
+    --leading-8: calc(var(--step-8) * 1.30);
+  }
+}
 *, *::before {
    box-sizing: border-box;
+}
+
+body {
+  background-color: var(--color-grey-01);
+  background-image: radial-gradient(var(--color-grey-02) 0% 6.25%, transparent 12.5% 100%);
+  background-size: 1rem 1rem;
+  background-position: center top;
 }
