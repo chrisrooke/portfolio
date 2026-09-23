@@ -51,7 +51,7 @@ const COVER_SIZES = '(min-width: 60rem) 16rem, 40vw';
   that note" is a reasonable thing to want. Prefixed by kind because ids are
   unique within a collection, not across two of them on the homepage.
 */}
-<article id={`${item.kind}-${item.entry.id}`} aria-label={label}>
+<article class="card" id={`${item.kind}-${item.entry.id}`} aria-label={label}>
   {
     item.kind === 'stash' ? (
       <>
@@ -79,13 +79,13 @@ const COVER_SIZES = '(min-width: 60rem) 16rem, 40vw';
           )}
         </Heading>
 
-        <StashMeta
+        {/* <StashMeta
           medium={item.entry.data.medium}
           creator={item.entry.data.creator}
           year={item.entry.data.year}
           rating={item.entry.data.rating}
           recommended={item.entry.data.recommended}
-        />
+        /> */}
       </>
     ) : (
       title && <Heading>{title}</Heading>
@@ -119,11 +119,11 @@ const COVER_SIZES = '(min-width: 60rem) 16rem, 40vw';
     )
   }
 
-  <p>
+  <!-- <p>
     <time datetime={machineDate(item.date)}>{formatDate(item.date)}</time>
-  </p>
+  </p> -->
 
-  {
+  <!-- {
     tags.length > 0 && (
       <ul role="list" aria-label="Tags">
         {tags.map((tag) => (
@@ -131,5 +131,5 @@ const COVER_SIZES = '(min-width: 60rem) 16rem, 40vw';
         ))}
       </ul>
     )
-  }
+  } -->
 </article>

@@ -26,12 +26,24 @@ const [recentProjects, recentWriting, recentStream] = await Promise.all([
 ---
 
 <Base title="Chris Rooke" description="Portfolio, writing, and notes.">
-  <h1>Chris Rooke</h1>
+  <!-- <p>Hey! I'm</p> -->
+  <h1 class="home">Chris Rooke</h1>
+  <!-- <p>and I'm a</p> -->
+  <ul class="list__roles">
+    <li>Design engineer</li>
+    <li>Writer</li>
+    <li>Advocate</li>
+    <li>...and Lego builder</li>
+  </ul>
 
-  <section aria-labelledby="recent-projects">
-    <h2 id="recent-projects">Projects</h2>
+  <section aria-labelledby="intro">
+    <h2 id="intro">Intro</h2>
+    <p>I’m a design engineer who works with designers, engineers, and other teams to bring delightful, accessible UI and engaging UX to life through best-standards code.</p>
+  </section>
+  <section aria-labelledby="projects">
+    <h2 id="projects">Projects</h2>
 
-    <ul role="list">
+    <ul class="list__cards" role="list">
       {
         recentProjects.map((entry) => (
           <li>
@@ -41,13 +53,13 @@ const [recentProjects, recentWriting, recentStream] = await Promise.all([
       }
     </ul>
 
-    <p><a href="/projects">All projects</a></p>
+    <!-- <p><a href="/projects">All projects</a></p> -->
   </section>
 
   <section aria-labelledby="recent-writing">
     <h2 id="recent-writing">Writing</h2>
 
-    <ul role="list">
+    <ul class="list__cards" role="list">
       {
         recentWriting.map((entry) => (
           <li>
@@ -57,7 +69,7 @@ const [recentProjects, recentWriting, recentStream] = await Promise.all([
       }
     </ul>
 
-    <p><a href="/writing">All writing</a></p>
+    <a class="button" href="/writing">All writing</a>
   </section>
 
   <section aria-labelledby="lately">
@@ -71,7 +83,7 @@ const [recentProjects, recentWriting, recentStream] = await Promise.all([
       The cost is that homepage length varies with whatever was last posted.
       If that ever bites, the fix is a smaller STREAM_COUNT, not truncation.
     */}
-    <ul role="list">
+    <ul class="list__cards" role="list">
       {
         recentStream.map((item) => (
           <li>
@@ -81,8 +93,6 @@ const [recentProjects, recentWriting, recentStream] = await Promise.all([
       }
     </ul>
 
-    <p>
-      <a href="/notes">All notes</a> · <a href="/stash">All stash</a>
-    </p>
+      <a class="button" href="/notes">All notes</a><a class="button" href="/stash">All stash</a>
   </section>
 </Base>

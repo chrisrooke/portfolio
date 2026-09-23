@@ -115,11 +115,34 @@ const path = Astro.url.pathname;
   </head>
 
   <body>
-    <a class="visually-hidden" href="#main">Skip to content</a>
+    <a class="skip-link" href="#main">Skip to content</a>
 
-    <header>
+    <header class="header__primary">
       <a href="/" rel="home">{siteName}</a>
-      <nav aria-label="Primary">
+      <button command="show-modal" commandfor="mobile_nav" class="button__icon"><span>Menu</span></button>
+      <dialog id="mobile_nav">
+        <div class="header__primary">
+          <a href="/" rel="home">{siteName}</a>
+          <button command="close" commandfor="mobile_nav" class="button__icon"><span>Close menu</span></button>
+        </div>
+        <nav aria-label="Primary">
+          <ul role="list">
+            {
+              nav.map(({ href, label }) => (
+                <li>
+                  <a
+                    href={href}
+                    aria-current={path === href || path.startsWith(`${href}/`) ? 'page' : undefined}
+                  >
+                    {label}
+                  </a>
+                </li>
+              ))
+            }
+          </ul>
+        </nav>
+      </dialog>
+      <!-- <nav aria-label="Primary">
         <ul role="list">
           {
             nav.map(({ href, label }) => (
@@ -134,7 +157,7 @@ const path = Astro.url.pathname;
             ))
           }
         </ul>
-      </nav>
+      </nav> -->
     </header>
 
     <main id="main">
@@ -143,10 +166,9 @@ const path = Astro.url.pathname;
 
     <footer>
       <p>&copy; {new Date().getFullYear()} {siteName}</p>
-      <p>
-        <a href="/sitemap">Sitemap</a> · <a href="/colophon">Colophon</a> ·
-        <a href="/rss.xml">RSS</a> <small>(<a href="/articles.xml">long-form only</a>)</small>
-      </p>
+      <a href="/sitemap">Sitemap</a>
+      <a href="/colophon">Colophon</a>
+      <p><a href="/rss.xml">RSS</a> <small>(<a href="/articles.xml">long-form only</a>)</small></p>
     </footer>
   </body>
 </html>

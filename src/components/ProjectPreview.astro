@@ -1,5 +1,5 @@
 ---
-import { Image } from 'astro:assets';
+import { getImage } from 'astro:assets';
 import { projectHref, type ProjectEntry } from '../lib/content';
 import { coverImageProps } from '../lib/images';
 
@@ -24,40 +24,63 @@ const Heading = `h${headingLevel}` as 'h2' | 'h3' | 'h4';
  */
 const CARD_WIDTHS = [400, 800, 1200];
 const CARD_SIZES = '(min-width: 60rem) 30rem, 100vw';
+
+/**
+ * getImage + a plain <img> rather than <Image>, which always infers `width` and
+ * `height` from the file. Those attributes give the element an implicit
+ * aspect-ratio that CSS then has to fight; sizing here is the stylesheet's job.
+ * Note the tradeoff: without them the card reflows once the cover decodes.
+ */
+const coverImage = cover
+  ? await getImage({ src: cover, ...coverImageProps(cover, CARD_WIDTHS, CARD_SIZES) })
+  : undefined;
 ---
 
 <article>
-  {
-    cover && (
-      <Image src={cover} alt={coverAlt ?? ''} {...coverImageProps(cover, CARD_WIDTHS, CARD_SIZES)} />
-    )
-  }
+  <a href={href} class="card">
+    <img src="" class="card__icon"/>
 
-  <Heading>
-    <!-- Title-only link, matching WritingPreview: a card-wide anchor makes the
-         text unselectable and announces the whole block as one link name. -->
-    <a href={href}>{title}</a>
-  </Heading>
+    <Heading>
+      <!-- Title-only link, matching WritingPreview: a card-wide anchor makes the
+          text unselectable and announces the whole block as one link name. -->
+      {title}
+    </Heading>
 
-  <p>{intro}</p>
+    <p>{intro}</p>
 
-  {
-    (role || year) && (
-      <p>
-        {role}
-        {role && year && ' · '}
-        {year}
-      </p>
-    )
-  }
+    <!-- {
+      (role || year) && (
+        <p>
+          {role}
+          {role && year && ' · '}
+          {year}
+        </p>
+      )
+    } -->
 
-  {
-    tech.length > 0 && (
-      <ul role="list" aria-label="Built with">
-        {tech.map((item) => (
-          <li>{item}</li>
-        ))}
-      </ul>
-    )
-  }
+    <!-- {
+      tech.length > 0 && (
+        <ul role="list" aria-label="Built with">
+          {tech.map((item) => (
+            <li>{item}</li>
+          ))}
+        </ul>
+      )
+    } -->
+
+    {
+      coverImage && (
+        <img
+          src={coverImage.src}
+          srcset={coverImage.srcSet.attribute || undefined}
+          sizes={coverImage.srcSet.attribute ? CARD_SIZES : undefined}
+          alt={coverAlt ?? ''}
+          loading="lazy"
+          decoding="async"
+          class="card__cover"
+        />
+      )
+    }
+
+  </a>
 </article>
