@@ -38,9 +38,9 @@ const coverImage = cover
 
 <article>
   <a href={href} class="card">
-    <img src="" class="card__icon"/>
+    <img src="" class="article__icon"/>
 
-    <Heading>
+    <Heading class="head--article">
       <!-- Title-only link, matching WritingPreview: a card-wide anchor makes the
           text unselectable and announces the whole block as one link name. -->
       {title}
@@ -77,7 +77,7 @@ const coverImage = cover
           alt={coverAlt ?? ''}
           loading="lazy"
           decoding="async"
-          class="card__cover"
+          class="article__hero"
         />
       )
     }

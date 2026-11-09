@@ -8,6 +8,8 @@ interface Props {
   title: string;
   /** Meta description. Optional, but worth setting on every real page. */
   description?: string;
+  /** Extra class(es) for <main>, for page-specific layout. */
+  className?: string;
   /**
    * Social card image. Falls back to the site-wide card. Pass an entry's
    * cover where there is one — a post shared with its own artwork looks
@@ -18,7 +20,7 @@ interface Props {
   type?: 'website' | 'article';
 }
 
-const { title, description, image, type = 'website' } = Astro.props;
+const { title, description, className, image, type = 'website' } = Astro.props;
 
 const siteName = 'Chris Rooke';
 
@@ -117,13 +119,15 @@ const path = Astro.url.pathname;
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
 
-    <header class="header__primary">
-      <a href="/" rel="home">{siteName}</a>
-      <button command="show-modal" commandfor="mobile_nav" class="button__icon"><span>Menu</span></button>
-      <dialog id="mobile_nav">
-        <div class="header__primary">
-          <a href="/" rel="home">{siteName}</a>
-          <button command="close" commandfor="mobile_nav" class="button__icon"><span>Close menu</span></button>
+    <header class="nav__wrap">
+      <div class="nav__grid">
+        <a href="/" rel="home" class="button nav__button--home">{siteName.split(' ').map((part, i) => (i ? <><br />{part}</> : part))}</a>
+        <button command="show-modal" commandfor="nav__mobile"><span>Menu</span></button>
+      </div>
+      <dialog id="nav__mobile" class="nav__wrap">
+        <div class="nav__grid">
+          <a href="/" rel="home" class="nav__button nav__button--home">{siteName.split(' ').map((part, i) => (i ? <><br />{part}</> : part))}</a>
+          <button command="close" commandfor="nav__mobile" class="button__icon"><span>Close menu</span></button>
         </div>
         <nav aria-label="Primary">
           <ul role="list">
@@ -160,7 +164,7 @@ const path = Astro.url.pathname;
       </nav> -->
     </header>
 
-    <main id="main">
+    <main id="main" class={className}>
       <slot />
     </main>
 

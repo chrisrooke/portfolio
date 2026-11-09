@@ -25,20 +25,25 @@ const [recentProjects, recentWriting, recentStream] = await Promise.all([
 ]);
 ---
 
-<Base title="Chris Rooke" description="Portfolio, writing, and notes.">
-  <!-- <p>Hey! I'm</p> -->
-  <h1 class="home">Chris Rooke</h1>
-  <!-- <p>and I'm a</p> -->
-  <ul class="list__roles">
+<Base title="Chris Rooke" description="Portfolio, writing, and notes." className="home">
+  <section id="intro" aria-labelledby="welcome">
+    <h1 id="welcome">Hey! I'm <span>Chris</span>. </h1> <p>I create things that bring joy and spark ideas to make the world a slightly better place.</p>
+  </section>
+  <!-- <ul class="list__roles">
     <li>Design engineer</li>
     <li>Writer</li>
     <li>Advocate</li>
     <li>...and Lego builder</li>
-  </ul>
+  </ul> -->
 
-  <section aria-labelledby="intro">
-    <h2 id="intro">Intro</h2>
-    <p>I’m a design engineer who works with designers, engineers, and other teams to bring delightful, accessible UI and engaging UX to life through best-standards code.</p>
+  <section aria-labelledby="currently">
+    <h2 id="currently">Currently</h2>
+    <ul>
+      <li>Director of Front-End Design Engineering at HMH</li>
+      <li>Contributor to <a href="https://gcn.ie">GCN</a></li>
+      <li>Advisory Board Member to <a href="https://www.we-consent.ie">We-Consent</a></li>
+      <li>Disco Enthusiast</li>
+    </ul>
   </section>
   <section aria-labelledby="projects">
     <h2 id="projects">Projects</h2>
@@ -57,7 +62,7 @@ const [recentProjects, recentWriting, recentStream] = await Promise.all([
   </section>
 
   <section aria-labelledby="recent-writing">
-    <h2 id="recent-writing">Writing</h2>
+    <h2 id="recent-writing">Words and Thoughts</h2>
 
     <ul class="list__cards" role="list">
       {
